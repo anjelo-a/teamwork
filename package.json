@@ -2,7 +2,7 @@
   "name": "teamwork",
   "private": true,
   "version": "0.1.0",
-  "packageManager": "pnpm@10",
+  "packageManager": "pnpm@10.0.0",
   "scripts": {
     "dev": "pnpm --parallel --filter ./apps/* dev",
     "build": "pnpm --filter ./apps/* build",
