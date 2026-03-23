@@ -1,0 +1,11 @@
+{
+  "name": "@teamwork/web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "echo \"Scaffold Next.js app here\"",
+    "build": "echo \"Build web app\"",
+    "lint": "echo \"Lint web app\"",
+    "test": "echo \"Test web app\""
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "teamwork",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10",
+  "scripts": {
+    "dev": "pnpm --parallel --filter ./apps/* dev",
+    "build": "pnpm --filter ./apps/* build",
+    "lint": "pnpm --filter ./apps/* lint",
+    "test": "pnpm --filter ./apps/* test"
+  }
+}

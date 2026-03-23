@@ -1,0 +1,11 @@
+{
+  "name": "@teamwork/api",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "echo \"Scaffold NestJS app here\"",
+    "build": "echo \"Build api app\"",
+    "lint": "echo \"Lint api app\"",
+    "test": "echo \"Test api app\""
+  }
+}
