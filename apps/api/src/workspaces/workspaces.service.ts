@@ -6,6 +6,13 @@ import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { slugify } from '../common/utils/slug.util';
 
+type WorkspaceMembershipCountArgs = NonNullable<
+  Parameters<PrismaService['workspaceMembership']['count']>[0]
+>;
+type WorkspaceInvitationCountArgs = NonNullable<
+  Parameters<PrismaService['workspaceInvitation']['count']>[0]
+>;
+
 interface WorkspaceRepository {
   create<T extends Prisma.WorkspaceCreateArgs>(
     args: Prisma.SelectSubset<T, Prisma.WorkspaceCreateArgs>,
@@ -25,11 +32,11 @@ interface WorkspaceMembershipRepository {
   findUniqueOrThrow<T extends Prisma.WorkspaceMembershipFindUniqueOrThrowArgs>(
     args: Prisma.SelectSubset<T, Prisma.WorkspaceMembershipFindUniqueOrThrowArgs>,
   ): Promise<Prisma.WorkspaceMembershipGetPayload<T>>;
-  count(args: Prisma.WorkspaceMembershipCountArgs): Promise<number>;
+  count(args: WorkspaceMembershipCountArgs): Promise<number>;
 }
 
 interface WorkspaceInvitationRepository {
-  count(args: Prisma.WorkspaceInvitationCountArgs): Promise<number>;
+  count(args: WorkspaceInvitationCountArgs): Promise<number>;
 }
 
 interface WorkspaceDatabase {
