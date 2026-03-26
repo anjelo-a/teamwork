@@ -1,0 +1,38 @@
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
+import { WorkspaceInvitationsService } from './workspace-invitations.service';
+
+@Controller()
+@UseGuards(JwtAuthGuard)
+export class WorkspaceInvitationsController {
+  constructor(
+    private readonly workspaceInvitationsService: WorkspaceInvitationsService,
+  ) {}
+
+  @Get('users/me/invitations')
+  async listMyInvitations(@CurrentUser() user: RequestUser) {
+    return {
+      invitations:
+        await this.workspaceInvitationsService.listPendingInvitationsForEmail(
+          user.email,
+        ),
+    };
+  }
+
+  @Post('workspaces/invitations/:invitationId/accept')
+  async acceptInvitation(
+    @CurrentUser() user: RequestUser,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+  ) {
+    return this.workspaceInvitationsService.acceptInvitation(invitationId, user);
+  }
+}

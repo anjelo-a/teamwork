@@ -78,6 +78,10 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "moduleNameMapper": {
+      "^@teamwork/types$": "<rootDir>/../test/shims/types.ts",
+      "^@teamwork/validation$": "<rootDir>/../test/shims/validation.ts"
+    },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],

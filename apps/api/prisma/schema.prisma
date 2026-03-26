@@ -21,6 +21,7 @@ model User {
   updatedAt        DateTime              @updatedAt @map("updated_at")
   createdWorkspaces Workspace[]          @relation("WorkspaceCreator")
   memberships      WorkspaceMembership[]
+  sentWorkspaceInvitations WorkspaceInvitation[] @relation("WorkspaceInvitationInviter")
 
   @@map("users")
 }
@@ -34,6 +35,7 @@ model Workspace {
   updatedAt      DateTime              @updatedAt @map("updated_at")
   createdByUser  User                  @relation("WorkspaceCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
   memberships    WorkspaceMembership[]
+  invitations    WorkspaceInvitation[]
 
   @@index([createdByUserId])
   @@map("workspaces")
@@ -52,4 +54,21 @@ model WorkspaceMembership {
   @@index([userId])
   @@index([workspaceId, userId])
   @@map("workspace_memberships")
+}
+
+model WorkspaceInvitation {
+  id              String        @id @default(uuid()) @db.Uuid
+  workspaceId     String        @map("workspace_id") @db.Uuid
+  email           String
+  role            WorkspaceRole
+  invitedByUserId String        @map("invited_by_user_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at")
+  acceptedAt      DateTime?     @map("accepted_at")
+  revokedAt       DateTime?     @map("revoked_at")
+  workspace       Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedByUser   User          @relation("WorkspaceInvitationInviter", fields: [invitedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId])
+  @@index([email])
+  @@map("workspace_invitations")
 }

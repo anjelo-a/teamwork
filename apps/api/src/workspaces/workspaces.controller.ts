@@ -9,13 +9,14 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
 import { WorkspaceMemberGuard } from '../common/auth/workspace-member.guard';
 import { WorkspaceRoleGuard } from '../common/auth/workspace-role.guard';
 import { WorkspaceRoles } from '../common/auth/workspace-roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { MembershipsService } from '../memberships/memberships.service';
+import { WorkspaceInvitationsService } from '../workspace-invitations/workspace-invitations.service';
 import { AddWorkspaceMemberDto } from './dto/add-workspace-member.dto';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceMemberDto } from './dto/update-workspace-member.dto';
@@ -27,6 +28,7 @@ export class WorkspacesController {
   constructor(
     private readonly workspacesService: WorkspacesService,
     private readonly membershipsService: MembershipsService,
+    private readonly workspaceInvitationsService: WorkspaceInvitationsService,
   ) {}
 
   @Get()
@@ -71,20 +73,34 @@ export class WorkspacesController {
     };
   }
 
+  @Get(':workspaceId/invitations')
+  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
+  @WorkspaceRoles('owner')
+  async listInvitations(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+  ) {
+    return {
+      invitations:
+        await this.workspaceInvitationsService.listPendingInvitations(
+          workspaceId,
+        ),
+    };
+  }
+
   @Post(':workspaceId/members')
   @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
   @WorkspaceRoles('owner')
   async addMember(
+    @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Body() dto: AddWorkspaceMemberDto,
   ) {
-    return {
-      membership: await this.membershipsService.addMemberByEmail(
-        workspaceId,
-        dto.email,
-        dto.role ?? 'member',
-      ),
-    };
+    return this.workspaceInvitationsService.inviteMember(
+      workspaceId,
+      dto.email,
+      dto.role ?? 'member',
+      user.id,
+    );
   }
 
   @Patch(':workspaceId/members/:userId')
@@ -105,12 +121,25 @@ export class WorkspacesController {
   }
 
   @Delete(':workspaceId/members/:userId')
-  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
-  @WorkspaceRoles('owner')
+  @UseGuards(WorkspaceMemberGuard)
   async removeMember(
+    @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
   ) {
-    return this.membershipsService.removeMember(workspaceId, userId);
+    return this.membershipsService.removeMember(workspaceId, userId, user.id);
+  }
+
+  @Delete(':workspaceId/invitations/:invitationId')
+  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
+  @WorkspaceRoles('owner')
+  async revokeInvitation(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+  ) {
+    return this.workspaceInvitationsService.revokeInvitation(
+      workspaceId,
+      invitationId,
+    );
   }
 }

@@ -18,6 +18,21 @@ export interface WorkspaceMembershipSummary {
   createdAt: string;
 }
 
+export interface WorkspaceMemberDetail extends WorkspaceMembershipSummary {
+  user: UserSummary;
+}
+
+export interface WorkspaceInvitationSummary {
+  id: ID;
+  workspaceId: ID;
+  email: string;
+  role: WorkspaceRole;
+  invitedByUserId: ID;
+  createdAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+}
+
 export interface WorkspaceSummary {
   id: ID;
   name: string;
@@ -30,6 +45,21 @@ export interface WorkspaceSummary {
 export interface AuthenticatedWorkspace extends WorkspaceSummary {
   membership: WorkspaceMembershipSummary;
 }
+
+export interface WorkspaceDetails extends AuthenticatedWorkspace {
+  memberCount: number;
+  invitationCount: number;
+}
+
+export type InviteWorkspaceMemberResult =
+  | {
+      kind: 'membership';
+      membership: WorkspaceMemberDetail;
+    }
+  | {
+      kind: 'invitation';
+      invitation: WorkspaceInvitationSummary;
+    };
 
 export interface AuthPayload {
   user: UserSummary;

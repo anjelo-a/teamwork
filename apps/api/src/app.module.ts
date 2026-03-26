@@ -12,6 +12,7 @@ import { validateEnvironment } from './config/env.validation';
 import { MembershipsModule } from './memberships/memberships.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
+import { WorkspaceInvitationsModule } from './workspace-invitations/workspace-invitations.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 
 @Module({
@@ -29,6 +30,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     PrismaModule,
     UsersModule,
     MembershipsModule,
+    WorkspaceInvitationsModule,
     WorkspacesModule,
     AuthModule,
   ],

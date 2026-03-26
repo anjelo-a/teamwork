@@ -3,15 +3,15 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import {
   Prisma,
   WorkspaceRole as PrismaWorkspaceRole,
+  type User,
   type WorkspaceMembership,
 } from '@prisma/client';
-import { normalizeEmail } from '@teamwork/validation';
 import type {
+  WorkspaceMemberDetail,
   WorkspaceMembershipSummary,
   WorkspaceRole,
 } from '@teamwork/types';
@@ -54,8 +54,12 @@ export class MembershipsService {
     }
   }
 
-  async requireMembership(workspaceId: string, userId: string) {
-    const membership = await this.prisma.workspaceMembership.findUnique({
+  async requireMembership(
+    workspaceId: string,
+    userId: string,
+    db: MembershipDatabase = this.prisma,
+  ) {
+    const membership = await db.workspaceMembership.findUnique({
       where: {
         workspaceId_userId: {
           workspaceId,
@@ -71,79 +75,70 @@ export class MembershipsService {
     return membership;
   }
 
-  async listWorkspaceMembers(workspaceId: string) {
+  async listWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberDetail[]> {
     const memberships = await this.prisma.workspaceMembership.findMany({
       where: { workspaceId },
       include: { user: true },
       orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
     });
 
-    return memberships.map((membership) => ({
-      id: membership.id,
-      role: membership.role,
-      createdAt: membership.createdAt.toISOString(),
-      user: this.usersService.toSummary(membership.user),
-    }));
-  }
-
-  async addMemberByEmail(
-    workspaceId: string,
-    email: string,
-    role: WorkspaceRole,
-  ) {
-    const user = await this.usersService.findByEmail(normalizeEmail(email));
-
-    if (!user) {
-      throw new NotFoundException('User not found.');
-    }
-
-    const membership = await this.createMembership({
-      workspaceId,
-      userId: user.id,
-      role,
-    });
-
-    return {
-      ...this.toSummary(membership),
-      user: this.usersService.toSummary(user),
-    };
+    return memberships.map((membership) => this.toDetail(membership, membership.user));
   }
 
   async updateMemberRole(
     workspaceId: string,
     userId: string,
     role: WorkspaceRole,
-  ) {
-    const membership = await this.requireMembership(workspaceId, userId);
+  ): Promise<WorkspaceMemberDetail> {
+    return this.prisma.$transaction(async (tx) => {
+      const membership = await this.requireMembership(workspaceId, userId, tx);
 
-    if (membership.role === PrismaWorkspaceRole.owner && role !== 'owner') {
-      await this.ensureWorkspaceHasAnotherOwner(workspaceId, userId);
-    }
+      if (membership.role === PrismaWorkspaceRole.owner && role !== 'owner') {
+        await this.ensureWorkspaceHasAnotherOwner(workspaceId, userId, tx);
+      }
 
-    const updatedMembership = await this.prisma.workspaceMembership.update({
-      where: { id: membership.id },
-      data: { role: toPrismaRole(role) },
-      include: { user: true },
+      const updatedMembership = await tx.workspaceMembership.update({
+        where: { id: membership.id },
+        data: { role: toPrismaRole(role) },
+        include: { user: true },
+      });
+
+      return this.toDetail(updatedMembership, updatedMembership.user);
     });
-
-    return {
-      ...this.toSummary(updatedMembership),
-      user: this.usersService.toSummary(updatedMembership.user),
-    };
   }
 
-  async removeMember(workspaceId: string, userId: string) {
-    const membership = await this.requireMembership(workspaceId, userId);
+  async removeMember(
+    workspaceId: string,
+    userId: string,
+    actingUserId: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const membership = await this.requireMembership(workspaceId, userId, tx);
 
-    if (membership.role === PrismaWorkspaceRole.owner) {
-      await this.ensureWorkspaceHasAnotherOwner(workspaceId, userId);
-    }
+      if (actingUserId !== userId) {
+        const actingMembership = await this.requireMembership(
+          workspaceId,
+          actingUserId,
+          tx,
+        );
 
-    await this.prisma.workspaceMembership.delete({
-      where: { id: membership.id },
+        if (actingMembership.role !== PrismaWorkspaceRole.owner) {
+          throw new ForbiddenException(
+            'You do not have permission to remove this member.',
+          );
+        }
+      }
+
+      if (membership.role === PrismaWorkspaceRole.owner) {
+        await this.ensureWorkspaceHasAnotherOwner(workspaceId, userId, tx);
+      }
+
+      await tx.workspaceMembership.delete({
+        where: { id: membership.id },
+      });
+
+      return { success: true };
     });
-
-    return { success: true };
   }
 
   toSummary(
@@ -161,11 +156,25 @@ export class MembershipsService {
     };
   }
 
-  private async ensureWorkspaceHasAnotherOwner(
+  toDetail(
+    membership: Pick<
+      WorkspaceMembership,
+      'id' | 'workspaceId' | 'userId' | 'role' | 'createdAt'
+    >,
+    user: Pick<User, 'id' | 'email' | 'displayName' | 'createdAt' | 'updatedAt'>,
+  ): WorkspaceMemberDetail {
+    return {
+      ...this.toSummary(membership),
+      user: this.usersService.toSummary(user),
+    };
+  }
+
+  async ensureWorkspaceHasAnotherOwner(
     workspaceId: string,
     excludedUserId: string,
+    db: MembershipDatabase = this.prisma,
   ) {
-    const ownerCount = await this.prisma.workspaceMembership.count({
+    const ownerCount = await db.workspaceMembership.count({
       where: {
         workspaceId,
         role: PrismaWorkspaceRole.owner,
