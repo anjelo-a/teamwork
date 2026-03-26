@@ -45,9 +45,7 @@ export class MembershipsService {
       });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
-        throw new ConflictException(
-          'The user is already a member of this workspace.',
-        );
+        throw new ConflictException('The user is already a member of this workspace.');
       }
 
       throw error;
@@ -75,18 +73,14 @@ export class MembershipsService {
     return membership;
   }
 
-  async listWorkspaceMembers(
-    workspaceId: string,
-  ): Promise<WorkspaceMemberDetail[]> {
+  async listWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberDetail[]> {
     const memberships = await this.prisma.workspaceMembership.findMany({
       where: { workspaceId },
       include: { user: true },
       orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
     });
 
-    return memberships.map((membership) =>
-      this.toDetail(membership, membership.user),
-    );
+    return memberships.map((membership) => this.toDetail(membership, membership.user));
   }
 
   async updateMemberRole(
@@ -111,25 +105,15 @@ export class MembershipsService {
     });
   }
 
-  async removeMember(
-    workspaceId: string,
-    userId: string,
-    actingUserId: string,
-  ) {
+  async removeMember(workspaceId: string, userId: string, actingUserId: string) {
     return this.prisma.$transaction(async (tx) => {
       const membership = await this.requireMembership(workspaceId, userId, tx);
 
       if (actingUserId !== userId) {
-        const actingMembership = await this.requireMembership(
-          workspaceId,
-          actingUserId,
-          tx,
-        );
+        const actingMembership = await this.requireMembership(workspaceId, actingUserId, tx);
 
         if (actingMembership.role !== PrismaWorkspaceRole.owner) {
-          throw new ForbiddenException(
-            'You do not have permission to remove this member.',
-          );
+          throw new ForbiddenException('You do not have permission to remove this member.');
         }
       }
 
@@ -146,10 +130,7 @@ export class MembershipsService {
   }
 
   toSummary(
-    membership: Pick<
-      WorkspaceMembership,
-      'id' | 'workspaceId' | 'userId' | 'role' | 'createdAt'
-    >,
+    membership: Pick<WorkspaceMembership, 'id' | 'workspaceId' | 'userId' | 'role' | 'createdAt'>,
   ): WorkspaceMembershipSummary {
     return {
       id: membership.id,
@@ -161,14 +142,8 @@ export class MembershipsService {
   }
 
   toDetail(
-    membership: Pick<
-      WorkspaceMembership,
-      'id' | 'workspaceId' | 'userId' | 'role' | 'createdAt'
-    >,
-    user: Pick<
-      User,
-      'id' | 'email' | 'displayName' | 'createdAt' | 'updatedAt'
-    >,
+    membership: Pick<WorkspaceMembership, 'id' | 'workspaceId' | 'userId' | 'role' | 'createdAt'>,
+    user: Pick<User, 'id' | 'email' | 'displayName' | 'createdAt' | 'updatedAt'>,
   ): WorkspaceMemberDetail {
     return {
       ...this.toSummary(membership),
@@ -196,9 +171,7 @@ export class MembershipsService {
 }
 
 function toPrismaRole(role: WorkspaceRole): PrismaWorkspaceRole {
-  return role === 'owner'
-    ? PrismaWorkspaceRole.owner
-    : PrismaWorkspaceRole.member;
+  return role === 'owner' ? PrismaWorkspaceRole.owner : PrismaWorkspaceRole.member;
 }
 
 function isUniqueConstraintError(error: unknown): boolean {

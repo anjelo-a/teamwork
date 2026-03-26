@@ -1,14 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import {
-  Prisma,
-  type Workspace,
-  type WorkspaceMembership,
-} from '@prisma/client';
-import type {
-  AuthenticatedWorkspace,
-  WorkspaceDetails,
-  WorkspaceSummary,
-} from '@teamwork/types';
+import { Prisma, type Workspace, type WorkspaceMembership } from '@prisma/client';
+import type { AuthenticatedWorkspace, WorkspaceDetails, WorkspaceSummary } from '@teamwork/types';
 import { normalizeWorkspaceName } from '@teamwork/validation';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -31,10 +23,7 @@ interface WorkspaceMembershipRepository {
     args: Prisma.SelectSubset<T, Prisma.WorkspaceMembershipFindUniqueArgs>,
   ): Promise<Prisma.WorkspaceMembershipGetPayload<T> | null>;
   findUniqueOrThrow<T extends Prisma.WorkspaceMembershipFindUniqueOrThrowArgs>(
-    args: Prisma.SelectSubset<
-      T,
-      Prisma.WorkspaceMembershipFindUniqueOrThrowArgs
-    >,
+    args: Prisma.SelectSubset<T, Prisma.WorkspaceMembershipFindUniqueOrThrowArgs>,
   ): Promise<Prisma.WorkspaceMembershipGetPayload<T>>;
   count(args: Prisma.WorkspaceMembershipCountArgs): Promise<number>;
 }
@@ -49,10 +38,12 @@ interface WorkspaceDatabase {
   workspaceInvitation: WorkspaceInvitationRepository;
 }
 
-function toWorkspaceDatabase(
-  db: Prisma.TransactionClient | PrismaService,
-): WorkspaceDatabase {
-  return db as unknown as WorkspaceDatabase;
+function toWorkspaceDatabase(db: Prisma.TransactionClient | PrismaService): WorkspaceDatabase {
+  return {
+    workspace: db.workspace,
+    workspaceMembership: db.workspaceMembership,
+    workspaceInvitation: db.workspaceInvitation,
+  };
 }
 
 @Injectable()
@@ -79,9 +70,7 @@ export class WorkspacesService {
   }
 
   async listForUser(userId: string): Promise<AuthenticatedWorkspace[]> {
-    const memberships = await toWorkspaceDatabase(
-      this.prisma,
-    ).workspaceMembership.findMany({
+    const memberships = await toWorkspaceDatabase(this.prisma).workspaceMembership.findMany({
       where: { userId },
       include: { workspace: true },
       orderBy: { createdAt: 'asc' },
@@ -92,10 +81,7 @@ export class WorkspacesService {
     );
   }
 
-  async getWorkspaceForUser(
-    workspaceId: string,
-    userId: string,
-  ): Promise<WorkspaceDetails> {
+  async getWorkspaceForUser(workspaceId: string, userId: string): Promise<WorkspaceDetails> {
     const db = toWorkspaceDatabase(this.prisma);
     const membership = await db.workspaceMembership.findUnique({
       where: {
@@ -133,10 +119,7 @@ export class WorkspacesService {
     };
   }
 
-  async createWorkspaceForUser(
-    name: string,
-    userId: string,
-  ): Promise<WorkspaceDetails> {
+  async createWorkspaceForUser(name: string, userId: string): Promise<WorkspaceDetails> {
     return this.prisma.$transaction(async (tx) => {
       const db = toWorkspaceDatabase(tx);
       const workspace = await this.createWorkspace(
@@ -194,10 +177,7 @@ export class WorkspacesService {
       Workspace,
       'id' | 'name' | 'slug' | 'createdByUserId' | 'createdAt' | 'updatedAt'
     >,
-    membership: Pick<
-      WorkspaceMembership,
-      'id' | 'workspaceId' | 'userId' | 'role' | 'createdAt'
-    >,
+    membership: Pick<WorkspaceMembership, 'id' | 'workspaceId' | 'userId' | 'role' | 'createdAt'>,
   ): AuthenticatedWorkspace {
     return {
       ...this.toSummary(workspace),
@@ -205,15 +185,12 @@ export class WorkspacesService {
     };
   }
 
-  private async generateUniqueSlug(
-    workspaceName: string,
-    db: WorkspaceDatabase,
-  ): Promise<string> {
-    const baseSlug = slugify(workspaceName) || 'workspace';
+  private async generateUniqueSlug(workspaceName: string, db: WorkspaceDatabase): Promise<string> {
+    const baseSlug = slugify(workspaceName);
     let attempt = 0;
 
-    while (true) {
-      const slug = attempt === 0 ? baseSlug : `${baseSlug}-${attempt + 1}`;
+    for (;;) {
+      const slug = attempt === 0 ? baseSlug : `${baseSlug}-${String(attempt + 1)}`;
       const existingWorkspace = await db.workspace.findUnique({
         where: { slug },
         select: { id: true },

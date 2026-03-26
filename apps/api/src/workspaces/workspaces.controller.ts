@@ -39,15 +39,9 @@ export class WorkspacesController {
   }
 
   @Post()
-  async createWorkspace(
-    @CurrentUser() user: RequestUser,
-    @Body() dto: CreateWorkspaceDto,
-  ) {
+  async createWorkspace(@CurrentUser() user: RequestUser, @Body() dto: CreateWorkspaceDto) {
     return {
-      workspace: await this.workspacesService.createWorkspaceForUser(
-        dto.name,
-        user.id,
-      ),
+      workspace: await this.workspacesService.createWorkspaceForUser(dto.name, user.id),
     };
   }
 
@@ -58,10 +52,7 @@ export class WorkspacesController {
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
   ) {
     return {
-      workspace: await this.workspacesService.getWorkspaceForUser(
-        workspaceId,
-        user.id,
-      ),
+      workspace: await this.workspacesService.getWorkspaceForUser(workspaceId, user.id),
     };
   }
 
@@ -76,14 +67,9 @@ export class WorkspacesController {
   @Get(':workspaceId/invitations')
   @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
   @WorkspaceRoles('owner')
-  async listInvitations(
-    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
-  ) {
+  async listInvitations(@Param('workspaceId', ParseUUIDPipe) workspaceId: string) {
     return {
-      invitations:
-        await this.workspaceInvitationsService.listPendingInvitations(
-          workspaceId,
-        ),
+      invitations: await this.workspaceInvitationsService.listPendingInvitations(workspaceId),
     };
   }
 
@@ -112,11 +98,7 @@ export class WorkspacesController {
     @Body() dto: UpdateWorkspaceMemberDto,
   ) {
     return {
-      membership: await this.membershipsService.updateMemberRole(
-        workspaceId,
-        userId,
-        dto.role,
-      ),
+      membership: await this.membershipsService.updateMemberRole(workspaceId, userId, dto.role),
     };
   }
 
@@ -137,9 +119,6 @@ export class WorkspacesController {
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('invitationId', ParseUUIDPipe) invitationId: string,
   ) {
-    return this.workspaceInvitationsService.revokeInvitation(
-      workspaceId,
-      invitationId,
-    );
+    return this.workspaceInvitationsService.revokeInvitation(workspaceId, invitationId);
   }
 }

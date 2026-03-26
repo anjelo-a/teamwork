@@ -1,16 +1,8 @@
-import {
-  ConflictException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { hash, compare } from 'bcrypt';
 import { normalizeEmail, normalizeWorkspaceName } from '@teamwork/validation';
-import type {
-  AuthPayload,
-  JwtAccessTokenPayload,
-  RegisterResponse,
-} from '@teamwork/types';
+import type { AuthPayload, JwtAccessTokenPayload, RegisterResponse } from '@teamwork/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { UsersService } from '../users/users.service';
@@ -73,10 +65,7 @@ export class AuthService {
       return { user, workspace, membership };
     });
 
-    const accessToken = await this.createAccessToken(
-      result.user.id,
-      result.user.email,
-    );
+    const accessToken = await this.createAccessToken(result.user.id, result.user.email);
     const workspaces = await this.workspacesService.listForUser(result.user.id);
 
     return {
@@ -127,10 +116,7 @@ export class AuthService {
     return this.jwtService.verifyAsync<JwtAccessTokenPayload>(token);
   }
 
-  private async createAccessToken(
-    userId: string,
-    email: string,
-  ): Promise<string> {
+  private async createAccessToken(userId: string, email: string): Promise<string> {
     const payload: JwtAccessTokenPayload = {
       sub: userId,
       email,

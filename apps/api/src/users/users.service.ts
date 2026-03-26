@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type User } from '@prisma/client';
 import type { UserSummary } from '@teamwork/types';
 import { normalizeEmail } from '@teamwork/validation';
@@ -62,10 +58,7 @@ export class UsersService {
   }
 
   toSummary(
-    user: Pick<
-      User,
-      'id' | 'email' | 'displayName' | 'createdAt' | 'updatedAt'
-    >,
+    user: Pick<User, 'id' | 'email' | 'displayName' | 'createdAt' | 'updatedAt'>,
   ): UserSummary {
     return {
       id: user.id,

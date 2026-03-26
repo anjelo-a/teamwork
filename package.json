@@ -6,7 +6,20 @@
   "scripts": {
     "dev": "pnpm --parallel --filter ./apps/* dev",
     "build": "pnpm --filter ./apps/* build",
-    "lint": "pnpm -r --if-present lint",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "16.2.1",
+    "globals": "^16.4.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2"
   }
 }

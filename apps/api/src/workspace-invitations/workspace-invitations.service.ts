@@ -36,16 +36,15 @@ const workspaceSummarySelect = {
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.WorkspaceSelect;
+const invitationWithWorkspaceSelect = {
+  ...invitationSummarySelect,
+  workspace: {
+    select: workspaceSummarySelect,
+  },
+} satisfies Prisma.WorkspaceInvitationSelect;
 
 type InvitationSummaryRecord = Prisma.WorkspaceInvitationGetPayload<{
   select: typeof invitationSummarySelect;
-}>;
-type InvitationWithWorkspaceRecord = Prisma.WorkspaceInvitationGetPayload<{
-  select: typeof invitationSummarySelect & {
-    workspace: {
-      select: typeof workspaceSummarySelect;
-    };
-  };
 }>;
 type WorkspaceSummaryRecord = Prisma.WorkspaceGetPayload<{
   select: typeof workspaceSummarySelect;
@@ -77,10 +76,11 @@ interface InvitationDatabase {
   workspaceMembership: WorkspaceMembershipRepository;
 }
 
-function toInvitationDatabase(
-  db: Prisma.TransactionClient | PrismaService,
-): InvitationDatabase {
-  return db as unknown as InvitationDatabase;
+function toInvitationDatabase(db: Prisma.TransactionClient | PrismaService): InvitationDatabase {
+  return {
+    workspaceInvitation: db.workspaceInvitation,
+    workspaceMembership: db.workspaceMembership,
+  };
 }
 
 @Injectable()
@@ -104,10 +104,7 @@ export class WorkspaceInvitationsService {
 
       await this.ensureNoActiveInvitation(workspaceId, normalizedEmail, db);
 
-      const existingUser = await this.usersService.findByEmail(
-        normalizedEmail,
-        tx,
-      );
+      const existingUser = await this.usersService.findByEmail(normalizedEmail, tx);
 
       if (existingUser) {
         const membership = await this.membershipsService.createMembership(
@@ -121,10 +118,7 @@ export class WorkspaceInvitationsService {
 
         return {
           kind: 'membership',
-          membership: this.membershipsService.toDetail(
-            membership,
-            existingUser,
-          ),
+          membership: this.membershipsService.toDetail(membership, existingUser),
         };
       }
 
@@ -145,12 +139,8 @@ export class WorkspaceInvitationsService {
     });
   }
 
-  async listPendingInvitations(
-    workspaceId: string,
-  ): Promise<WorkspaceInvitationSummary[]> {
-    const invitations = await toInvitationDatabase(
-      this.prisma,
-    ).workspaceInvitation.findMany({
+  async listPendingInvitations(workspaceId: string): Promise<WorkspaceInvitationSummary[]> {
+    const invitations = await toInvitationDatabase(this.prisma).workspaceInvitation.findMany({
       where: {
         workspaceId,
         acceptedAt: null,
@@ -170,25 +160,18 @@ export class WorkspaceInvitationsService {
     }>
   > {
     const normalizedEmail = normalizeEmail(email);
-    const invitations = await toInvitationDatabase(
-      this.prisma,
-    ).workspaceInvitation.findMany({
+    const invitations = await toInvitationDatabase(this.prisma).workspaceInvitation.findMany({
       where: {
         email: normalizedEmail,
         acceptedAt: null,
         revokedAt: null,
       },
-      select: {
-        ...invitationSummarySelect,
-        workspace: {
-          select: workspaceSummarySelect,
-        },
-      },
+      select: invitationWithWorkspaceSelect,
       orderBy: { createdAt: 'asc' },
     });
 
     return invitations.map((invitation) => ({
-      invitation: this.toSummary(invitation as InvitationWithWorkspaceRecord),
+      invitation: this.toSummary(invitation),
       workspace: this.toWorkspaceSummary(invitation.workspace),
     }));
   }
@@ -197,9 +180,7 @@ export class WorkspaceInvitationsService {
     workspaceId: string,
     invitationId: string,
   ): Promise<{ invitation: WorkspaceInvitationSummary }> {
-    const invitationStore = toInvitationDatabase(
-      this.prisma,
-    ).workspaceInvitation;
+    const invitationStore = toInvitationDatabase(this.prisma).workspaceInvitation;
     const invitation = await invitationStore.findFirst({
       where: {
         id: invitationId,
@@ -262,9 +243,7 @@ export class WorkspaceInvitationsService {
       });
 
       if (existingMembership) {
-        throw new ConflictException(
-          'You are already a member of this workspace.',
-        );
+        throw new ConflictException('You are already a member of this workspace.');
       }
 
       const createdMembership = await this.membershipsService.createMembership(
@@ -285,10 +264,7 @@ export class WorkspaceInvitationsService {
       const currentUser = await this.usersService.getByIdOrThrow(user.id, tx);
 
       return {
-        membership: this.membershipsService.toDetail(
-          createdMembership,
-          currentUser,
-        ),
+        membership: this.membershipsService.toDetail(createdMembership, currentUser),
       };
     });
   }
@@ -339,9 +315,7 @@ export class WorkspaceInvitationsService {
       });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
-        throw new ConflictException(
-          'There is already a pending invitation for this email.',
-        );
+        throw new ConflictException('There is already a pending invitation for this email.');
       }
 
       throw error;
@@ -364,15 +338,11 @@ export class WorkspaceInvitationsService {
     });
 
     if (existingInvitation) {
-      throw new ConflictException(
-        'There is already a pending invitation for this email.',
-      );
+      throw new ConflictException('There is already a pending invitation for this email.');
     }
   }
 
-  private toWorkspaceSummary(
-    workspace: WorkspaceSummaryRecord,
-  ): WorkspaceSummary {
+  private toWorkspaceSummary(workspace: WorkspaceSummaryRecord): WorkspaceSummary {
     return {
       id: workspace.id,
       name: workspace.name,

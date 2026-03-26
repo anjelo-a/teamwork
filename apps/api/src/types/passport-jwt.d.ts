@@ -27,18 +27,11 @@ declare module 'passport-jwt' {
   export class Strategy extends PassportStrategyBase {
     constructor(
       options: StrategyOptions,
-      verify: (
-        payload: unknown,
-        done: VerifiedCallback,
-      ) => void | Promise<void>,
+      verify: (payload: unknown, done: VerifiedCallback) => void | Promise<void>,
     );
     constructor(
       options: StrategyOptionsWithRequest,
-      verify: (
-        request: Request,
-        payload: unknown,
-        done: VerifiedCallback,
-      ) => void | Promise<void>,
+      verify: (request: Request, payload: unknown, done: VerifiedCallback) => void | Promise<void>,
     );
     name: string;
   }

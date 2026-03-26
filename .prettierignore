@@ -1,0 +1,16 @@
+node_modules
+.pnpm
+.next
+dist
+build
+coverage
+.turbo
+.agents
+docs
+AGENTS.md
+PLANS.md
+README.md
+apps/api/prisma/migrations
+apps/web/next-env.d.ts
+pnpm-lock.yaml
+package-lock.json

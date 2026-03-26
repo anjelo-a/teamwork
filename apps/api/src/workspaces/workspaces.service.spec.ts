@@ -32,9 +32,8 @@ describe('WorkspacesService', () => {
   let service: WorkspacesService;
 
   beforeEach(() => {
-    const runInTransaction = <T>(
-      callback: (tx: typeof prisma) => Promise<T>,
-    ): Promise<T> => callback(prisma);
+    const runInTransaction = <T>(callback: (tx: typeof prisma) => Promise<T>): Promise<T> =>
+      callback(prisma);
     const toMembershipSummary = (
       membership: WorkspaceMembershipRecord,
     ): WorkspaceMembershipSummary => ({
@@ -68,10 +67,7 @@ describe('WorkspacesService', () => {
       ),
     };
 
-    service = new WorkspacesService(
-      prisma as never,
-      membershipsService as never,
-    );
+    service = new WorkspacesService(prisma as never, membershipsService as never);
   });
 
   it('creates a workspace and owner membership in one transaction', async () => {
@@ -92,10 +88,7 @@ describe('WorkspacesService', () => {
       createdAt: new Date('2026-03-26T00:00:00.000Z'),
     });
 
-    const result = await service.createWorkspaceForUser(
-      'Product Team',
-      'user-1',
-    );
+    const result = await service.createWorkspaceForUser('Product Team', 'user-1');
 
     expect(prisma.$transaction).toHaveBeenCalled();
     expect(membershipsService.createMembership).toHaveBeenCalledWith(

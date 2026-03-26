@@ -32,9 +32,8 @@ describe('MembershipsService', () => {
   let service: MembershipsService;
 
   beforeEach(() => {
-    const runInTransaction = <T>(
-      callback: (tx: typeof prisma) => Promise<T>,
-    ): Promise<T> => callback(prisma);
+    const runInTransaction = <T>(callback: (tx: typeof prisma) => Promise<T>): Promise<T> =>
+      callback(prisma);
     const toUserSummary = (user: UserRecord): UserSummary => ({
       id: user.id,
       email: user.email,
@@ -55,9 +54,7 @@ describe('MembershipsService', () => {
       $transaction: jest.fn(runInTransaction),
     };
     usersService = {
-      toSummary: jest.fn(
-        (user: UserRecord): UserSummary => toUserSummary(user),
-      ),
+      toSummary: jest.fn((user: UserRecord): UserSummary => toUserSummary(user)),
     };
 
     service = new MembershipsService(prisma as never, usersService as never);
@@ -87,11 +84,7 @@ describe('MembershipsService', () => {
       },
     });
 
-    const result = await service.updateMemberRole(
-      workspaceId,
-      targetUserId,
-      'member',
-    );
+    const result = await service.updateMemberRole(workspaceId, targetUserId, 'member');
 
     expect(result.role).toBe('member');
     expect(prisma.workspaceMembership.count).toHaveBeenCalledWith({
@@ -128,9 +121,9 @@ describe('MembershipsService', () => {
     });
     prisma.workspaceMembership.delete.mockResolvedValueOnce({});
 
-    await expect(
-      service.removeMember(workspaceId, actingUserId, actingUserId),
-    ).resolves.toEqual({ success: true });
+    await expect(service.removeMember(workspaceId, actingUserId, actingUserId)).resolves.toEqual({
+      success: true,
+    });
   });
 
   it('blocks a non-owner from removing someone else', async () => {

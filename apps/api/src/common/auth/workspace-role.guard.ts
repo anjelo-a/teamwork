@@ -1,9 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { WorkspaceRole } from '@teamwork/types';
 import { WORKSPACE_ROLES_KEY } from './workspace-roles.decorator';
@@ -14,7 +9,7 @@ export class WorkspaceRoleGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<WorkspaceRole[]>(
+    const requiredRoles = this.reflector.getAllAndOverride<WorkspaceRole[] | undefined>(
       WORKSPACE_ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );

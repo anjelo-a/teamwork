@@ -44,9 +44,8 @@ describe('WorkspaceInvitationsService', () => {
   let service: WorkspaceInvitationsService;
 
   beforeEach(() => {
-    const runInTransaction = <T>(
-      callback: (tx: typeof prisma) => Promise<T>,
-    ): Promise<T> => callback(prisma);
+    const runInTransaction = <T>(callback: (tx: typeof prisma) => Promise<T>): Promise<T> =>
+      callback(prisma);
     const toUserSummary = (user: UserRecord): UserSummary => ({
       id: user.id,
       email: user.email,
@@ -81,10 +80,8 @@ describe('WorkspaceInvitationsService', () => {
     membershipsService = {
       createMembership: jest.fn(),
       toDetail: jest.fn(
-        (
-          membership: MembershipRecord,
-          user: UserRecord,
-        ): WorkspaceMemberDetail => toMemberDetail(membership, user),
+        (membership: MembershipRecord, user: UserRecord): WorkspaceMemberDetail =>
+          toMemberDetail(membership, user),
       ),
     };
     usersService = {
@@ -162,12 +159,7 @@ describe('WorkspaceInvitationsService', () => {
     });
 
     await expect(
-      service.inviteMember(
-        workspaceId,
-        'invitee@example.com',
-        'member',
-        'owner-1',
-      ),
+      service.inviteMember(workspaceId, 'invitee@example.com', 'member', 'owner-1'),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -224,13 +216,16 @@ describe('WorkspaceInvitationsService', () => {
       email: 'invitee@example.com',
     });
 
-    const [updateArgs] =
-      (prisma.workspaceInvitation.update.mock.calls[0] as [
-        {
-          where: { id: string };
-          data: { acceptedAt: Date };
-        },
-      ]) ?? [];
+    const updateCall: unknown = prisma.workspaceInvitation.update.mock.calls[0];
+
+    expect(updateCall).toBeDefined();
+
+    const [updateArgs] = updateCall as [
+      {
+        where: { id: string };
+        data: { acceptedAt: Date };
+      },
+    ];
 
     expect(updateArgs).toMatchObject({
       where: { id: invitationId },
@@ -261,9 +256,7 @@ describe('WorkspaceInvitationsService', () => {
       },
     ]);
 
-    const result = await service.listPendingInvitationsForEmail(
-      'invitee@example.com',
-    );
+    const result = await service.listPendingInvitationsForEmail('invitee@example.com');
 
     expect(prisma.workspaceInvitation.findMany).toHaveBeenCalledWith({
       where: {

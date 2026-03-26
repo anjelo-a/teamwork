@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 import type {
   WorkspaceInvitationSummary,
   WorkspaceMemberDetail,
@@ -19,9 +12,7 @@ import { WorkspaceInvitationsService } from './workspace-invitations.service';
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class WorkspaceInvitationsController {
-  constructor(
-    private readonly workspaceInvitationsService: WorkspaceInvitationsService,
-  ) {}
+  constructor(private readonly workspaceInvitationsService: WorkspaceInvitationsService) {}
 
   @Get('users/me/invitations')
   async listMyInvitations(@CurrentUser() user: RequestUser): Promise<{
@@ -31,10 +22,9 @@ export class WorkspaceInvitationsController {
     }>;
   }> {
     return {
-      invitations:
-        await this.workspaceInvitationsService.listPendingInvitationsForEmail(
-          user.email,
-        ),
+      invitations: await this.workspaceInvitationsService.listPendingInvitationsForEmail(
+        user.email,
+      ),
     };
   }
 
@@ -43,9 +33,6 @@ export class WorkspaceInvitationsController {
     @CurrentUser() user: RequestUser,
     @Param('invitationId', ParseUUIDPipe) invitationId: string,
   ): Promise<{ membership: WorkspaceMemberDetail }> {
-    return this.workspaceInvitationsService.acceptInvitation(
-      invitationId,
-      user,
-    );
+    return this.workspaceInvitationsService.acceptInvitation(invitationId, user);
   }
 }
