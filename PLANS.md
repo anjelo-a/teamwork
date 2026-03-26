@@ -219,3 +219,21 @@ workspace_memberships
 * unauthorized access is consistently blocked
 * system supports multiple users across multiple workspaces
 * authentication integrates cleanly with future realtime features
+
+## Skill-Aware Execution
+
+All implementation must follow applicable skills from `.agents/skills`.
+
+Before coding:
+
+1. Identify relevant skills
+2. Apply their constraints
+3. Then implement
+
+Before reporting completion:
+
+1. Apply the `self-review` skill
+2. Verify work against `AGENTS.md`, `PLANS.md`, and task requirements
+3. Only then report completion
+
+Skipping skill alignment is incorrect execution.
