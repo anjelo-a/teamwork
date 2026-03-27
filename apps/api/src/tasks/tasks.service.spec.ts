@@ -113,6 +113,22 @@ describe('TasksService', () => {
     expect(result.createdByUserId).toBe(userId);
   });
 
+  it('blocks non-members from creating tasks', async () => {
+    membershipsService.requireMembership.mockRejectedValueOnce(new ForbiddenException());
+
+    await expect(
+      service.createTask(
+        workspaceId,
+        {
+          title: 'Build API',
+        },
+        userId,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.task.create).not.toHaveBeenCalled();
+  });
+
   it('lists tasks for a workspace with stable ordering', async () => {
     prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
 
@@ -199,6 +215,15 @@ describe('TasksService', () => {
     expect(prisma.task.update).not.toHaveBeenCalled();
   });
 
+  it('fails safely when updating a task outside the requested workspace', async () => {
+    prisma.task.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      service.updateTask(otherWorkspaceId, taskId, { title: 'Updated title' }, userId),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.task.update).not.toHaveBeenCalled();
+  });
+
   it('deletes a task after workspace and task checks pass', async () => {
     prisma.task.findFirst.mockResolvedValueOnce(buildTaskRecord());
     prisma.task.delete.mockResolvedValueOnce({});
@@ -208,6 +233,15 @@ describe('TasksService', () => {
     expect(prisma.task.delete).toHaveBeenCalledWith({
       where: { id: taskId },
     });
+  });
+
+  it('fails safely when deleting a task outside the requested workspace', async () => {
+    prisma.task.findFirst.mockResolvedValueOnce(null);
+
+    await expect(service.deleteTask(otherWorkspaceId, taskId, userId)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(prisma.task.delete).not.toHaveBeenCalled();
   });
 
   it('supports unassigning a task', async () => {

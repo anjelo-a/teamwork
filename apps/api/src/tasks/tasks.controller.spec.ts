@@ -1,4 +1,7 @@
+import { GUARDS_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
+import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { WorkspaceMemberGuard } from '../common/auth/workspace-member.guard';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskAssigneeDto } from './dto/update-task-assignee.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -39,6 +42,16 @@ describe('TasksController', () => {
     };
 
     controller = new TasksController(tasksService as never);
+  });
+
+  it('is mounted on the workspace task route and protected by auth plus membership guards', () => {
+    expect(Reflect.getMetadata(PATH_METADATA, TasksController)).toBe(
+      'workspaces/:workspaceId/tasks',
+    );
+    expect(Reflect.getMetadata(GUARDS_METADATA, TasksController)).toEqual([
+      JwtAuthGuard,
+      WorkspaceMemberGuard,
+    ]);
   });
 
   it('lists tasks through the service and wraps the response', async () => {
