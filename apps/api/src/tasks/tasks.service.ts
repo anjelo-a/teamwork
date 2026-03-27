@@ -153,6 +153,10 @@ export class TasksService {
       data.description = this.normalizeDescription(input.description);
     }
 
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('At least one updatable task field is required.');
+    }
+
     const task = await toTaskDatabase(this.prisma).task.update({
       where: { id: taskId },
       data,

@@ -190,6 +190,15 @@ describe('TasksService', () => {
     expect(result.createdByUserId).toBe(userId);
   });
 
+  it('rejects task updates when no updatable fields are provided', async () => {
+    prisma.task.findFirst.mockResolvedValueOnce(buildTaskRecord());
+
+    await expect(service.updateTask(workspaceId, taskId, {}, userId)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(prisma.task.update).not.toHaveBeenCalled();
+  });
+
   it('deletes a task after workspace and task checks pass', async () => {
     prisma.task.findFirst.mockResolvedValueOnce(buildTaskRecord());
     prisma.task.delete.mockResolvedValueOnce({});
