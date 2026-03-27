@@ -53,7 +53,6 @@ describe('TasksController', () => {
       WorkspaceMemberGuard,
     ]);
   });
-
   it('lists tasks through the service and wraps the response', async () => {
     tasksService.listTasksForWorkspace.mockResolvedValueOnce([{ id: taskId }]);
 
