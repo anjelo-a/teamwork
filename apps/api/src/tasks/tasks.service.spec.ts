@@ -229,6 +229,16 @@ describe('TasksService', () => {
     );
   });
 
+  it('fails safely when updating assignee for a task outside the workspace', async () => {
+    prisma.task.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      service.updateTaskAssignee(otherWorkspaceId, taskId, otherUserId, userId),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.workspaceMembership.findUnique).not.toHaveBeenCalled();
+    expect(prisma.task.update).not.toHaveBeenCalled();
+  });
+
   it('updates task status with allowed values', async () => {
     prisma.task.findFirst.mockResolvedValueOnce(buildTaskRecord());
     prisma.task.update.mockResolvedValueOnce(
@@ -247,6 +257,15 @@ describe('TasksService', () => {
     );
   });
 
+  it('fails safely when updating status for a task outside the workspace', async () => {
+    prisma.task.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      service.updateTaskStatus(otherWorkspaceId, taskId, 'done', userId),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.task.update).not.toHaveBeenCalled();
+  });
+
   it('propagates workspace membership failures for non-members', async () => {
     membershipsService.requireMembership.mockRejectedValueOnce(
       new ForbiddenException('You do not belong to this workspace.'),
@@ -255,6 +274,26 @@ describe('TasksService', () => {
     await expect(service.listTasksForWorkspace(workspaceId, userId)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+
+  it('blocks non-members from updating task status', async () => {
+    membershipsService.requireMembership.mockRejectedValueOnce(
+      new ForbiddenException('You do not belong to this workspace.'),
+    );
+
+    await expect(
+      service.updateTaskStatus(workspaceId, taskId, 'done', userId),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('blocks non-members from updating task assignee', async () => {
+    membershipsService.requireMembership.mockRejectedValueOnce(
+      new ForbiddenException('You do not belong to this workspace.'),
+    );
+
+    await expect(
+      service.updateTaskAssignee(workspaceId, taskId, otherUserId, userId),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   function buildTaskRecord(overrides: Partial<TaskRecord> = {}): TaskRecord {
