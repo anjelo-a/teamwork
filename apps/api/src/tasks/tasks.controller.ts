@@ -9,7 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import type { TaskDetails, TaskSummary } from '@teamwork/types';
+import type { TaskDeleteResponse, TaskListResponse, TaskResponse } from '@teamwork/types';
 import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
 import { WorkspaceMemberGuard } from '../common/auth/workspace-member.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -29,7 +29,7 @@ export class TasksController {
   async listTasks(
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
-  ): Promise<{ tasks: TaskSummary[] }> {
+  ): Promise<TaskListResponse> {
     return {
       tasks: await this.tasksService.listTasksForWorkspace(workspaceId, user.id),
     };
@@ -40,7 +40,7 @@ export class TasksController {
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Body() dto: CreateTaskDto,
-  ): Promise<{ task: TaskDetails }> {
+  ): Promise<TaskResponse> {
     return {
       task: await this.tasksService.createTask(workspaceId, dto, user.id),
     };
@@ -51,7 +51,7 @@ export class TasksController {
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('taskId', ParseUUIDPipe) taskId: string,
-  ): Promise<{ task: TaskDetails }> {
+  ): Promise<TaskResponse> {
     return {
       task: await this.tasksService.getTaskForWorkspace(workspaceId, taskId, user.id),
     };
@@ -63,7 +63,7 @@ export class TasksController {
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('taskId', ParseUUIDPipe) taskId: string,
     @Body() dto: UpdateTaskDto,
-  ): Promise<{ task: TaskDetails }> {
+  ): Promise<TaskResponse> {
     return {
       task: await this.tasksService.updateTask(workspaceId, taskId, dto, user.id),
     };
@@ -74,7 +74,7 @@ export class TasksController {
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('taskId', ParseUUIDPipe) taskId: string,
-  ): Promise<{ success: true }> {
+  ): Promise<TaskDeleteResponse> {
     await this.tasksService.deleteTask(workspaceId, taskId, user.id);
     return { success: true };
   }
@@ -85,7 +85,7 @@ export class TasksController {
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('taskId', ParseUUIDPipe) taskId: string,
     @Body() dto: UpdateTaskStatusDto,
-  ): Promise<{ task: TaskDetails }> {
+  ): Promise<TaskResponse> {
     return {
       task: await this.tasksService.updateTaskStatus(workspaceId, taskId, dto.status, user.id),
     };
@@ -97,7 +97,7 @@ export class TasksController {
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('taskId', ParseUUIDPipe) taskId: string,
     @Body() dto: UpdateTaskAssigneeDto,
-  ): Promise<{ task: TaskDetails }> {
+  ): Promise<TaskResponse> {
     return {
       task: await this.tasksService.updateTaskAssignee(
         workspaceId,

@@ -1,9 +1,14 @@
 import { Transform, type TransformFnParams } from 'class-transformer';
 import { IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateIf } from 'class-validator';
-import { TASK_DESCRIPTION_MAX_LENGTH, TASK_TITLE_MAX_LENGTH } from '@teamwork/validation';
+import {
+  normalizeTaskDescription,
+  normalizeTaskTitle,
+  TASK_DESCRIPTION_MAX_LENGTH,
+  TASK_TITLE_MAX_LENGTH,
+} from '@teamwork/validation';
 
 function normalizeTaskTitleValue({ value }: TransformFnParams): unknown {
-  return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : value;
+  return typeof value === 'string' ? normalizeTaskTitle(value) : value;
 }
 
 function normalizeTaskDescriptionValue({ value }: TransformFnParams): unknown {
@@ -11,7 +16,7 @@ function normalizeTaskDescriptionValue({ value }: TransformFnParams): unknown {
     return value;
   }
 
-  const normalizedValue = value.trim();
+  const normalizedValue = normalizeTaskDescription(value);
   return normalizedValue === '' ? null : normalizedValue;
 }
 
