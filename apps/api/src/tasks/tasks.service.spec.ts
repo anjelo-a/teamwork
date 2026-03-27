@@ -243,7 +243,6 @@ describe('TasksService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.task.update).not.toHaveBeenCalled();
   });
-
   it('deletes a task after workspace and task checks pass', async () => {
     prisma.task.findFirst.mockResolvedValueOnce(buildTaskRecord());
     prisma.task.delete.mockResolvedValueOnce({});
