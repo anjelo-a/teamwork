@@ -68,6 +68,18 @@ export interface TaskSummary {
 
 export type TaskDetails = TaskSummary;
 
+export interface TaskResponse {
+  task: TaskDetails;
+}
+
+export interface TaskListResponse {
+  tasks: TaskSummary[];
+}
+
+export interface TaskDeleteResponse {
+  success: true;
+}
+
 export type InviteWorkspaceMemberResult =
   | {
       kind: 'membership';
