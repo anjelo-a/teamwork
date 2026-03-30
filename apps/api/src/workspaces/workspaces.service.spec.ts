@@ -1,5 +1,8 @@
+import { Test } from '@nestjs/testing';
 import { WorkspacesService } from './workspaces.service';
 import type { WorkspaceMembershipSummary } from '@teamwork/types';
+import { MembershipsService } from '../memberships/memberships.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('WorkspacesService', () => {
   type WorkspaceMembershipRecord = {
@@ -31,7 +34,7 @@ describe('WorkspacesService', () => {
   };
   let service: WorkspacesService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const runInTransaction = <T>(callback: (tx: typeof prisma) => Promise<T>): Promise<T> =>
       callback(prisma);
     const toMembershipSummary = (
@@ -67,7 +70,15 @@ describe('WorkspacesService', () => {
       ),
     };
 
-    service = new WorkspacesService(prisma as never, membershipsService as never);
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        WorkspacesService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: MembershipsService, useValue: membershipsService },
+      ],
+    }).compile();
+
+    service = moduleRef.get(WorkspacesService);
   });
 
   it('creates a workspace and owner membership in one transaction', async () => {

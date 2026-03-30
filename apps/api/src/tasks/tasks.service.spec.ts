@@ -1,6 +1,10 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import { TaskStatus as PrismaTaskStatus } from '@prisma/client';
 import type { UserSummary } from '@teamwork/types';
+import { MembershipsService } from '../memberships/memberships.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { UsersService } from '../users/users.service';
 import { TasksService } from './tasks.service';
 
 describe('TasksService', () => {
@@ -52,7 +56,7 @@ describe('TasksService', () => {
   };
   let service: TasksService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const toUserSummary = (user: UserRecord): UserSummary => ({
       id: user.id,
       email: user.email,
@@ -80,23 +84,30 @@ describe('TasksService', () => {
       toSummary: jest.fn((user: UserRecord): UserSummary => toUserSummary(user)),
     };
 
-    service = new TasksService(prisma as never, membershipsService as never, usersService as never);
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        TasksService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: MembershipsService, useValue: membershipsService },
+        { provide: UsersService, useValue: usersService },
+      ],
+    }).compile();
+
+    service = moduleRef.get(TasksService);
   });
 
   it('creates a task with the authenticated user as creator', async () => {
     prisma.workspaceMembership.findUnique.mockResolvedValueOnce({ id: 'membership-2' });
     prisma.task.create.mockResolvedValueOnce(buildTaskRecord());
 
-    const result = await service.createTask(
-      workspaceId,
-      {
-        title: '  Build   API  ',
-        description: '  Add task routes  ',
-        assigneeUserId: otherUserId,
-        createdByUserId: 'spoofed-user',
-      } as never,
-      userId,
-    );
+    const maliciousInput = {
+      title: '  Build   API  ',
+      description: '  Add task routes  ',
+      assigneeUserId: otherUserId,
+      createdByUserId: 'spoofed-user',
+    };
+
+    const result = await service.createTask(workspaceId, maliciousInput, userId);
     const [createTaskArgs] = prisma.task.create.mock.calls as [
       [
         {

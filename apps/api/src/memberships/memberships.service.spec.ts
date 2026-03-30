@@ -1,6 +1,9 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import { Prisma, WorkspaceRole as PrismaWorkspaceRole } from '@prisma/client';
 import type { UserSummary } from '@teamwork/types';
+import { PrismaService } from '../prisma/prisma.service';
+import { UsersService } from '../users/users.service';
 import { MembershipsService } from './memberships.service';
 
 describe('MembershipsService', () => {
@@ -31,7 +34,7 @@ describe('MembershipsService', () => {
   };
   let service: MembershipsService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const runInTransaction = <T>(callback: (tx: typeof prisma) => Promise<T>): Promise<T> =>
       callback(prisma);
     const toUserSummary = (user: UserRecord): UserSummary => ({
@@ -57,7 +60,15 @@ describe('MembershipsService', () => {
       toSummary: jest.fn((user: UserRecord): UserSummary => toUserSummary(user)),
     };
 
-    service = new MembershipsService(prisma as never, usersService as never);
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        MembershipsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: UsersService, useValue: usersService },
+      ],
+    }).compile();
+
+    service = moduleRef.get(MembershipsService);
   });
 
   it('updates a member role when another owner remains', async () => {

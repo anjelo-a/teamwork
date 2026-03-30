@@ -1,6 +1,10 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import { WorkspaceRole as PrismaWorkspaceRole } from '@prisma/client';
 import type { UserSummary, WorkspaceMemberDetail } from '@teamwork/types';
+import { MembershipsService } from '../memberships/memberships.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { UsersService } from '../users/users.service';
 import { WorkspaceInvitationsService } from './workspace-invitations.service';
 
 describe('WorkspaceInvitationsService', () => {
@@ -43,7 +47,7 @@ describe('WorkspaceInvitationsService', () => {
   };
   let service: WorkspaceInvitationsService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const runInTransaction = <T>(callback: (tx: typeof prisma) => Promise<T>): Promise<T> =>
       callback(prisma);
     const toUserSummary = (user: UserRecord): UserSummary => ({
@@ -89,11 +93,16 @@ describe('WorkspaceInvitationsService', () => {
       getByIdOrThrow: jest.fn(),
     };
 
-    service = new WorkspaceInvitationsService(
-      prisma as never,
-      membershipsService as never,
-      usersService as never,
-    );
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        WorkspaceInvitationsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: MembershipsService, useValue: membershipsService },
+        { provide: UsersService, useValue: usersService },
+      ],
+    }).compile();
+
+    service = moduleRef.get(WorkspaceInvitationsService);
   });
 
   it('creates a membership immediately for an existing user', async () => {
