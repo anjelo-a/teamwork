@@ -80,8 +80,6 @@ interface InvitationDatabase {
   workspaceMembership: WorkspaceMembershipRepository;
 }
 
-const INVITATION_TTL_IN_DAYS = 7;
-
 function toInvitationDatabase(db: Prisma.TransactionClient | PrismaService): InvitationDatabase {
   return {
     workspaceInvitation: db.workspaceInvitation,
@@ -299,7 +297,7 @@ export class WorkspaceInvitationsService {
     },
     db: InvitationDatabase,
   ): Promise<InvitationSummaryRecord> {
-    const expiresAt = createInvitationExpiresAt();
+    const expiresAt = this.createInvitationExpiresAt();
 
     try {
       return await db.workspaceInvitation.create({
@@ -379,8 +377,19 @@ export class WorkspaceInvitationsService {
   }
 
   private buildInviteUrl(token: string): string {
-    const appUrl = this.configService.get<string>('APP_URL') ?? 'http://localhost:3000';
-    return new URL(`/invitations/accept?token=${encodeURIComponent(token)}`, appUrl).toString();
+    const inviteBaseUrl =
+      this.configService.get<string>('INVITE_BASE_URL') ??
+      this.configService.get<string>('APP_URL') ??
+      'http://localhost:3000';
+
+    return new URL(`/invite/${encodeURIComponent(token)}`, inviteBaseUrl).toString();
+  }
+
+  private createInvitationExpiresAt(from = new Date()): Date {
+    const inviteTtlDays = this.configService.get<number>('INVITE_TTL_DAYS') ?? 30;
+    const expiresAt = new Date(from);
+    expiresAt.setDate(expiresAt.getDate() + inviteTtlDays);
+    return expiresAt;
   }
 }
 
@@ -394,10 +403,4 @@ function createInvitationToken(): string {
 
 function createInvitationTokenHash(token: string): string {
   return createHash('sha256').update(token).digest('hex');
-}
-
-function createInvitationExpiresAt(from = new Date()): Date {
-  const expiresAt = new Date(from);
-  expiresAt.setDate(expiresAt.getDate() + INVITATION_TTL_IN_DAYS);
-  return expiresAt;
 }

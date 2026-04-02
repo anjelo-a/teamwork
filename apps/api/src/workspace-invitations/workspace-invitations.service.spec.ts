@@ -11,6 +11,33 @@ import { WorkspaceInvitationsService } from './workspace-invitations.service';
 describe('WorkspaceInvitationsService', () => {
   const workspaceId = 'workspace-1';
   const invitationId = 'invitation-1';
+  type WorkspaceInvitationCreateCall = {
+    data: {
+      workspaceId: string;
+      email: string;
+      role: string;
+      invitedByUserId: string;
+      tokenHash: string;
+      expiresAt: Date;
+    };
+    select: {
+      id: true;
+      workspaceId: true;
+      email: true;
+      role: true;
+      invitedByUserId: true;
+      expiresAt: true;
+      createdAt: true;
+      acceptedAt: true;
+      revokedAt: true;
+    };
+  };
+  const getCreateInvitationArgs = (
+    createMock: jest.Mock,
+  ): WorkspaceInvitationCreateCall | undefined => {
+    const createCalls = createMock.mock.calls as Array<[WorkspaceInvitationCreateCall]>;
+    return createCalls[0]?.[0];
+  };
   type MembershipRecord = {
     id: string;
     workspaceId: string;
@@ -93,7 +120,21 @@ describe('WorkspaceInvitationsService', () => {
       ),
     };
     configService = {
-      get: jest.fn((key: string) => (key === 'APP_URL' ? 'http://localhost:3000' : undefined)),
+      get: jest.fn((key: string) => {
+        if (key === 'INVITE_BASE_URL') {
+          return 'http://localhost:3000';
+        }
+
+        if (key === 'INVITE_TTL_DAYS') {
+          return 30;
+        }
+
+        if (key === 'APP_URL') {
+          return 'http://localhost:3000';
+        }
+
+        return undefined;
+      }),
     };
     usersService = {
       findByEmail: jest.fn(),
@@ -143,7 +184,7 @@ describe('WorkspaceInvitationsService', () => {
 
     expect(result.kind).toBe('invitation');
     expect(result.token).toEqual(expect.any(String));
-    expect(result.inviteUrl).toBe(`http://localhost:3000/invitations/accept?token=${result.token}`);
+    expect(result.inviteUrl).toBe(`http://localhost:3000/invite/${result.token}`);
     expect(result.invitation).toMatchObject({
       id: invitationId,
       email: 'member@example.com',
@@ -174,36 +215,33 @@ describe('WorkspaceInvitationsService', () => {
       'owner-1',
     );
 
-    expect(result).toMatchObject({
-      kind: 'invitation',
-      invitation: {
-        id: invitationId,
-        email: 'invitee@example.com',
-        expiresAt: '2026-04-02T00:00:00.000Z',
-      },
-      token: expect.any(String),
-      inviteUrl: expect.stringContaining('/invitations/accept?token='),
+    expect(result.kind).toBe('invitation');
+    expect(result.invitation).toMatchObject({
+      id: invitationId,
+      email: 'invitee@example.com',
+      expiresAt: '2026-04-02T00:00:00.000Z',
     });
-    expect(prisma.workspaceInvitation.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        workspaceId,
-        email: 'invitee@example.com',
-        role: 'member',
-        invitedByUserId: 'owner-1',
-        tokenHash: expect.any(String),
-        expiresAt: expect.any(Date),
-      }),
-      select: {
-        id: true,
-        workspaceId: true,
-        email: true,
-        role: true,
-        invitedByUserId: true,
-        expiresAt: true,
-        createdAt: true,
-        acceptedAt: true,
-        revokedAt: true,
-      },
+    expect(typeof result.token).toBe('string');
+    expect(result.inviteUrl).toContain('/invite/');
+
+    const createArgs = getCreateInvitationArgs(prisma.workspaceInvitation.create);
+    expect(createArgs).toBeDefined();
+    expect(createArgs?.data.workspaceId).toBe(workspaceId);
+    expect(createArgs?.data.email).toBe('invitee@example.com');
+    expect(createArgs?.data.role).toBe('member');
+    expect(createArgs?.data.invitedByUserId).toBe('owner-1');
+    expect(createArgs?.data.tokenHash).toEqual(expect.any(String));
+    expect(createArgs?.data.expiresAt).toBeInstanceOf(Date);
+    expect(createArgs?.select).toEqual({
+      id: true,
+      workspaceId: true,
+      email: true,
+      role: true,
+      invitedByUserId: true,
+      expiresAt: true,
+      createdAt: true,
+      acceptedAt: true,
+      revokedAt: true,
     });
   });
 
@@ -248,6 +286,54 @@ describe('WorkspaceInvitationsService', () => {
     await expect(
       service.inviteMember(workspaceId, 'invitee@example.com', 'member', 'owner-1'),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('uses the configured invite ttl when creating an invitation', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-26T00:00:00.000Z'));
+    usersService.findByEmail.mockResolvedValueOnce(null);
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'INVITE_BASE_URL') {
+        return 'https://app.teamwork.test';
+      }
+
+      if (key === 'INVITE_TTL_DAYS') {
+        return 45;
+      }
+
+      return undefined;
+    });
+    prisma.workspaceInvitation.create.mockResolvedValueOnce({
+      id: invitationId,
+      workspaceId,
+      email: 'invitee@example.com',
+      role: PrismaWorkspaceRole.member,
+      invitedByUserId: 'owner-1',
+      expiresAt: new Date('2026-05-10T00:00:00.000Z'),
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      acceptedAt: null,
+      revokedAt: null,
+    });
+
+    try {
+      await service.inviteMember(workspaceId, 'invitee@example.com', 'member', 'owner-1');
+
+      const createArgs = getCreateInvitationArgs(prisma.workspaceInvitation.create);
+      expect(createArgs).toBeDefined();
+      expect(createArgs?.data.expiresAt).toEqual(new Date('2026-05-10T00:00:00.000Z'));
+      expect(createArgs?.select).toEqual({
+        id: true,
+        workspaceId: true,
+        email: true,
+        role: true,
+        invitedByUserId: true,
+        expiresAt: true,
+        createdAt: true,
+        acceptedAt: true,
+        revokedAt: true,
+      });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('blocks accepting an invitation for another email', async () => {
