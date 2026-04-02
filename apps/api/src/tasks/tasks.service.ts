@@ -344,7 +344,7 @@ export class TasksService {
   private buildTaskListWhere(input: ListTasksForUserInput): Prisma.TaskWhereInput {
     return {
       ...this.buildTaskListScopeFilter(input),
-      ...this.buildAssignmentFilter(input.assignment ?? 'all', input.currentUserId),
+      ...this.buildAssignmentFilter(input.assignment ?? 'everyone', input.currentUserId),
       ...this.buildDueBucketFilter(input.dueBucket, input.referenceDate),
     };
   }
@@ -373,6 +373,12 @@ export class TasksService {
   ): Prisma.TaskWhereInput {
     if (assignment === 'me') {
       return { assigneeUserId: currentUserId };
+    }
+
+    if (assignment === 'others') {
+      return {
+        AND: [{ assigneeUserId: { not: null } }, { assigneeUserId: { not: currentUserId } }],
+      };
     }
 
     if (assignment === 'unassigned') {

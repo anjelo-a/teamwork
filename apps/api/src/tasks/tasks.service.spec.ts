@@ -248,13 +248,13 @@ describe('TasksService', () => {
     expect(prisma.task.findMany).not.toHaveBeenCalled();
   });
 
-  it('leaves assignee unconstrained when assignment is all', async () => {
+  it('leaves assignee unconstrained when assignment is everyone', async () => {
     prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
 
     await service.listTasksForWorkspace({
       workspaceId,
       currentUserId: userId,
-      assignment: 'all',
+      assignment: 'everyone',
     });
 
     expect(getLastListTasksWhere()).toEqual({
@@ -274,6 +274,21 @@ describe('TasksService', () => {
     expect(getLastListTasksWhere()).toEqual({
       workspaceId,
       assigneeUserId: userId,
+    });
+  });
+
+  it('filters task listing to tasks assigned to other users when assignment is others', async () => {
+    prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
+
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      assignment: 'others',
+    });
+
+    expect(getLastListTasksWhere()).toEqual({
+      workspaceId,
+      AND: [{ assigneeUserId: { not: null } }, { assigneeUserId: { not: userId } }],
     });
   });
 

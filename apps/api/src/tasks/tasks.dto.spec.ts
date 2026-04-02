@@ -132,7 +132,7 @@ describe('Task DTOs', () => {
     const dto = plainToInstance(ListTaskFiltersDto, {
       workspaceId: ' 3f0efc0b-4d17-4cb5-a522-6ac5cda66b68 ',
       dueBucket: ' today ',
-      assignment: ' me ',
+      assignment: ' others ',
       referenceDate: ' 2026-04-15 ',
     });
 
@@ -141,8 +141,19 @@ describe('Task DTOs', () => {
     expect(errors).toHaveLength(0);
     expect(dto.workspaceId).toBe('3f0efc0b-4d17-4cb5-a522-6ac5cda66b68');
     expect(dto.dueBucket).toBe('today');
-    expect(dto.assignment).toBe('me');
+    expect(dto.assignment).toBe('others');
     expect(dto.referenceDate).toBe('2026-04-15');
+  });
+
+  it('normalizes the legacy all assignment filter to everyone', async () => {
+    const dto = plainToInstance(ListTaskFiltersDto, {
+      assignment: ' all ',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.assignment).toBe('everyone');
   });
 
   it('rejects an invalid task list reference date', async () => {
