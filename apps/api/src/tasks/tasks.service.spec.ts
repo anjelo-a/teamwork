@@ -234,6 +234,20 @@ describe('TasksService', () => {
     });
   });
 
+  it('blocks inbox filtering to a workspace the user does not belong to', async () => {
+    membershipsService.requireMembership.mockRejectedValueOnce(
+      new ForbiddenException('You do not belong to this workspace.'),
+    );
+
+    await expect(
+      service.listTasksForUser(userId, {
+        workspaceId,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.task.findMany).not.toHaveBeenCalled();
+  });
+
   it('leaves assignee unconstrained when assignment is all', async () => {
     prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
 
@@ -375,6 +389,19 @@ describe('TasksService', () => {
         },
       }),
     );
+  });
+
+  it('rejects an invalid referenceDate before querying tasks', async () => {
+    await expect(
+      service.listTasksForWorkspace({
+        workspaceId,
+        currentUserId: userId,
+        dueBucket: 'today',
+        referenceDate: '2026-02-29',
+      }),
+    ).rejects.toThrow('Reference date must be a valid date in YYYY-MM-DD format.');
+
+    expect(prisma.task.findMany).not.toHaveBeenCalled();
   });
 
   it('returns task details when the task belongs to the workspace', async () => {
