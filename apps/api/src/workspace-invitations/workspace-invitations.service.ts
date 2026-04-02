@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { createHash, randomBytes } from 'node:crypto';
 import { Prisma, type WorkspaceInvitation } from '@prisma/client';
 import { normalizeEmail } from '@teamwork/validation';
 import type {
@@ -76,6 +77,8 @@ interface InvitationDatabase {
   workspaceInvitation: WorkspaceInvitationRepository;
   workspaceMembership: WorkspaceMembershipRepository;
 }
+
+const INVITATION_TTL_IN_DAYS = 7;
 
 function toInvitationDatabase(db: Prisma.TransactionClient | PrismaService): InvitationDatabase {
   return {
@@ -309,6 +312,8 @@ export class WorkspaceInvitationsService {
         data: {
           workspaceId: input.workspaceId,
           email: input.email,
+          tokenHash: createInvitationTokenHash(),
+          expiresAt: createInvitationExpiresAt(),
           role: input.role,
           invitedByUserId: input.invitedByUserId,
         },
@@ -357,4 +362,14 @@ export class WorkspaceInvitationsService {
 
 function isUniqueConstraintError(error: unknown): boolean {
   return isPrismaErrorCode(error, 'P2002');
+}
+
+function createInvitationTokenHash(): string {
+  return createHash('sha256').update(randomBytes(32)).digest('hex');
+}
+
+function createInvitationExpiresAt(from = new Date()): Date {
+  const expiresAt = new Date(from);
+  expiresAt.setDate(expiresAt.getDate() + INVITATION_TTL_IN_DAYS);
+  return expiresAt;
 }

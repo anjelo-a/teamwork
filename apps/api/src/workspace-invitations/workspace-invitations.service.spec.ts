@@ -160,6 +160,26 @@ describe('WorkspaceInvitationsService', () => {
         email: 'invitee@example.com',
       },
     });
+    expect(prisma.workspaceInvitation.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workspaceId,
+        email: 'invitee@example.com',
+        role: 'member',
+        invitedByUserId: 'owner-1',
+        tokenHash: expect.any(String),
+        expiresAt: expect.any(Date),
+      }),
+      select: {
+        id: true,
+        workspaceId: true,
+        email: true,
+        role: true,
+        invitedByUserId: true,
+        createdAt: true,
+        acceptedAt: true,
+        revokedAt: true,
+      },
+    });
   });
 
   it('rejects duplicate active invitations', async () => {

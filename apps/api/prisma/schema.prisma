@@ -69,6 +69,8 @@ model WorkspaceInvitation {
   id              String        @id @default(uuid()) @db.Uuid
   workspaceId     String        @map("workspace_id") @db.Uuid
   email           String
+  tokenHash       String        @unique @map("token_hash")
+  expiresAt       DateTime      @map("expires_at")
   role            WorkspaceRole
   invitedByUserId String        @map("invited_by_user_id") @db.Uuid
   createdAt       DateTime      @default(now()) @map("created_at")
