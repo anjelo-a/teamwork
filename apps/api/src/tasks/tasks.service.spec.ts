@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { TaskStatus as PrismaTaskStatus } from '@prisma/client';
+import { TaskStatus as PrismaTaskStatus, type Prisma } from '@prisma/client';
 import type { UserSummary } from '@teamwork/types';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -191,29 +191,121 @@ describe('TasksService', () => {
     expect(result).toHaveLength(1);
   });
 
-  it('applies assignment and due bucket filters to task listing', async () => {
+  it('leaves assignee unconstrained when assignment is all', async () => {
+    prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
+
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      assignment: 'all',
+    });
+
+    expect(getLastListTasksWhere()).toEqual({
+      workspaceId,
+    });
+  });
+
+  it('filters task listing to the current user when assignment is me', async () => {
+    prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
+
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      assignment: 'me',
+    });
+
+    expect(getLastListTasksWhere()).toEqual({
+      workspaceId,
+      assigneeUserId: userId,
+    });
+  });
+
+  it('filters task listing to unassigned tasks when assignment is unassigned', async () => {
     prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
 
     await service.listTasksForWorkspace({
       workspaceId,
       currentUserId: userId,
       assignment: 'unassigned',
+    });
+
+    expect(getLastListTasksWhere()).toEqual({
+      workspaceId,
+      assigneeUserId: null,
+    });
+  });
+
+  it('filters past-due tasks using the reference date and excludes completed tasks', async () => {
+    prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
+
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
       dueBucket: 'past_due',
       referenceDate: '2026-04-15',
     });
 
-    expect(prisma.task.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          workspaceId,
-          assigneeUserId: null,
-          dueDate: {
-            lt: new Date('2026-04-15T00:00:00.000Z'),
-          },
-        },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      }),
-    );
+    expect(getLastListTasksWhere()).toEqual({
+      workspaceId,
+      dueDate: {
+        lt: new Date('2026-04-15T00:00:00.000Z'),
+      },
+      status: {
+        not: PrismaTaskStatus.done,
+      },
+    });
+  });
+
+  it('filters tasks due today using the reference date', async () => {
+    prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
+
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      dueBucket: 'today',
+      referenceDate: '2026-04-15',
+    });
+
+    expect(getLastListTasksWhere()).toEqual({
+      workspaceId,
+      dueDate: {
+        equals: new Date('2026-04-15T00:00:00.000Z'),
+      },
+    });
+  });
+
+  it('filters upcoming tasks using the reference date', async () => {
+    prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
+
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      dueBucket: 'upcoming',
+      referenceDate: '2026-04-15',
+    });
+
+    expect(getLastListTasksWhere()).toEqual({
+      workspaceId,
+      dueDate: {
+        gt: new Date('2026-04-15T00:00:00.000Z'),
+      },
+    });
+  });
+
+  it('filters tasks without due dates when due bucket is no_date', async () => {
+    prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
+
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      dueBucket: 'no_date',
+      referenceDate: '2026-04-15',
+    });
+
+    expect(getLastListTasksWhere()).toEqual({
+      workspaceId,
+      dueDate: null,
+    });
   });
 
   it('defaults referenceDate to the current UTC date for date-based filters', async () => {
@@ -498,5 +590,22 @@ describe('TasksService', () => {
       assigneeUser,
       ...overrides,
     };
+  }
+
+  function getLastListTasksWhere(): Prisma.TaskWhereInput {
+    const calls = prisma.task.findMany.mock.calls as Array<
+      [
+        {
+          where: Prisma.TaskWhereInput;
+        },
+      ]
+    >;
+    const lastCall = calls[calls.length - 1];
+
+    if (!lastCall) {
+      throw new Error('Expected task.findMany to be called.');
+    }
+
+    return lastCall[0].where;
   }
 });

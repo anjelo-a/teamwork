@@ -320,61 +320,54 @@ export class TasksService {
   }
 
   private buildTaskListWhere(input: ListTasksForWorkspaceInput): Prisma.TaskWhereInput {
-    const where: Prisma.TaskWhereInput = {
+    return {
       workspaceId: input.workspaceId,
+      ...this.buildAssignmentFilter(input.assignment ?? 'all', input.currentUserId),
+      ...this.buildDueBucketFilter(input.dueBucket, input.referenceDate),
     };
-
-    const assignmentFilter = input.assignment ?? 'all';
-    const dueBucket = input.dueBucket;
-
-    this.applyAssignmentFilter(where, assignmentFilter, input.currentUserId);
-    this.applyDueBucketFilter(where, dueBucket, input.referenceDate);
-
-    return where;
   }
 
-  private applyAssignmentFilter(
-    where: Prisma.TaskWhereInput,
+  private buildAssignmentFilter(
     assignment: TaskAssignmentFilter,
     currentUserId: string,
-  ): void {
+  ): Prisma.TaskWhereInput {
     if (assignment === 'me') {
-      where.assigneeUserId = currentUserId;
-      return;
+      return { assigneeUserId: currentUserId };
     }
 
     if (assignment === 'unassigned') {
-      where.assigneeUserId = null;
+      return { assigneeUserId: null };
     }
+
+    return {};
   }
 
-  private applyDueBucketFilter(
-    where: Prisma.TaskWhereInput,
+  private buildDueBucketFilter(
     dueBucket: TaskDueBucket | undefined,
     referenceDateInput: string | null | undefined,
-  ): void {
+  ): Prisma.TaskWhereInput {
     if (!dueBucket) {
-      return;
+      return {};
     }
 
     if (dueBucket === 'no_date') {
-      where.dueDate = null;
-      return;
+      return { dueDate: null };
     }
 
     const referenceDate = this.resolveReferenceDate(referenceDateInput);
 
     if (dueBucket === 'past_due') {
-      where.dueDate = { lt: referenceDate };
-      return;
+      return {
+        dueDate: { lt: referenceDate },
+        status: { not: PrismaTaskStatus.done },
+      };
     }
 
     if (dueBucket === 'today') {
-      where.dueDate = { equals: referenceDate };
-      return;
+      return { dueDate: { equals: referenceDate } };
     }
 
-    where.dueDate = { gt: referenceDate };
+    return { dueDate: { gt: referenceDate } };
   }
 
   private resolveReferenceDate(referenceDateInput: string | null | undefined): Date {
