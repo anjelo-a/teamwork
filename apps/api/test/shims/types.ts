@@ -2,6 +2,8 @@ export type ID = string;
 
 export type WorkspaceRole = 'owner' | 'member';
 export type TaskStatus = 'todo' | 'in_progress' | 'done';
+export type TaskDueBucket = 'past_due' | 'today' | 'upcoming' | 'no_date';
+export type TaskAssignmentFilter = 'all' | 'me' | 'unassigned';
 
 export interface UserSummary {
   id: ID;
