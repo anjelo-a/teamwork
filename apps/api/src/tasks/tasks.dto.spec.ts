@@ -46,6 +46,17 @@ describe('Task DTOs', () => {
     expect(errors[0]?.property).toBe('assigneeUserId');
   });
 
+  it('allows dueDate to be omitted on create', async () => {
+    const dto = plainToInstance(CreateTaskDto, {
+      title: 'Build task API',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.dueDate).toBeUndefined();
+  });
+
   it('normalizes update task description and maps empty strings to null', async () => {
     const dto = plainToInstance(UpdateTaskDto, {
       title: '  Update   task ',
@@ -71,6 +82,17 @@ describe('Task DTOs', () => {
 
     expect(errors).toHaveLength(1);
     expect(errors[0]?.property).toBe('dueDate');
+  });
+
+  it('allows dueDate to be omitted on update', async () => {
+    const dto = plainToInstance(UpdateTaskDto, {
+      title: 'Update task',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.dueDate).toBeUndefined();
   });
 
   it('rejects an invalid task status', async () => {
