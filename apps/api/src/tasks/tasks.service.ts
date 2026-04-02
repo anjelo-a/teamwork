@@ -6,6 +6,11 @@ import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { serializeTaskDueDate, tryParseTaskDueDate } from './task-due-date.util';
+import type {
+  TaskAssignmentFilter,
+  TaskDueBucket,
+  TaskListFilters,
+} from './dto/list-task-filters.dto';
 
 const userSummarySelect = {
   id: true,
@@ -37,6 +42,11 @@ const taskDetailsSelect = {
 type TaskRecord = Prisma.TaskGetPayload<{
   select: typeof taskDetailsSelect;
 }>;
+
+interface ListTasksForWorkspaceInput extends TaskListFilters {
+  workspaceId: string;
+  currentUserId: string;
+}
 
 interface TaskRepository {
   create<T extends Prisma.TaskCreateArgs>(
@@ -114,11 +124,11 @@ export class TasksService {
     return this.toDetails(task);
   }
 
-  async listTasksForWorkspace(workspaceId: string, currentUserId: string): Promise<TaskSummary[]> {
-    await this.membershipsService.requireMembership(workspaceId, currentUserId);
+  async listTasksForWorkspace(input: ListTasksForWorkspaceInput): Promise<TaskSummary[]> {
+    await this.membershipsService.requireMembership(input.workspaceId, input.currentUserId);
 
     const tasks = await toTaskDatabase(this.prisma).task.findMany({
-      where: { workspaceId },
+      where: this.buildTaskListWhere(input),
       select: taskDetailsSelect,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
@@ -307,6 +317,83 @@ export class TasksService {
     }
 
     return parsedDueDate;
+  }
+
+  private buildTaskListWhere(input: ListTasksForWorkspaceInput): Prisma.TaskWhereInput {
+    const where: Prisma.TaskWhereInput = {
+      workspaceId: input.workspaceId,
+    };
+
+    const assignmentFilter = input.assignment ?? 'all';
+    const dueBucket = input.dueBucket;
+
+    this.applyAssignmentFilter(where, assignmentFilter, input.currentUserId);
+    this.applyDueBucketFilter(where, dueBucket, input.referenceDate);
+
+    return where;
+  }
+
+  private applyAssignmentFilter(
+    where: Prisma.TaskWhereInput,
+    assignment: TaskAssignmentFilter,
+    currentUserId: string,
+  ): void {
+    if (assignment === 'me') {
+      where.assigneeUserId = currentUserId;
+      return;
+    }
+
+    if (assignment === 'unassigned') {
+      where.assigneeUserId = null;
+    }
+  }
+
+  private applyDueBucketFilter(
+    where: Prisma.TaskWhereInput,
+    dueBucket: TaskDueBucket | undefined,
+    referenceDateInput: string | null | undefined,
+  ): void {
+    if (!dueBucket) {
+      return;
+    }
+
+    if (dueBucket === 'no_date') {
+      where.dueDate = null;
+      return;
+    }
+
+    const referenceDate = this.resolveReferenceDate(referenceDateInput);
+
+    if (dueBucket === 'past_due') {
+      where.dueDate = { lt: referenceDate };
+      return;
+    }
+
+    if (dueBucket === 'today') {
+      where.dueDate = { equals: referenceDate };
+      return;
+    }
+
+    where.dueDate = { gt: referenceDate };
+  }
+
+  private resolveReferenceDate(referenceDateInput: string | null | undefined): Date {
+    if (!referenceDateInput) {
+      return this.getCurrentUtcDate();
+    }
+
+    const parsedDate = tryParseTaskDueDate(referenceDateInput);
+
+    if (!parsedDate) {
+      throw new BadRequestException('Reference date must be a valid date in YYYY-MM-DD format.');
+    }
+
+    return parsedDate;
+  }
+
+  private getCurrentUtcDate(): Date {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   }
 
   private toUserSummary(

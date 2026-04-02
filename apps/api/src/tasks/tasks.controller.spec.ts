@@ -1,8 +1,10 @@
+import { BadRequestException } from '@nestjs/common';
 import { GUARDS_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
 import { WorkspaceMemberGuard } from '../common/auth/workspace-member.guard';
 import type { CreateTaskDto } from './dto/create-task.dto';
+import type { ListTaskFiltersDto } from './dto/list-task-filters.dto';
 import type { UpdateTaskAssigneeDto } from './dto/update-task-assignee.dto';
 import type { UpdateTaskDto } from './dto/update-task.dto';
 import type { UpdateTaskStatusDto } from './dto/update-task-status.dto';
@@ -54,12 +56,34 @@ describe('TasksController', () => {
     ]);
   });
   it('lists tasks through the service and wraps the response', async () => {
+    const filters: ListTaskFiltersDto = {
+      workspaceId,
+      dueBucket: 'today',
+      assignment: 'me',
+      referenceDate: '2026-04-02',
+    };
     tasksService.listTasksForWorkspace.mockResolvedValueOnce([{ id: taskId }]);
 
-    await expect(controller.listTasks(user, workspaceId)).resolves.toEqual({
+    await expect(controller.listTasks(user, workspaceId, filters)).resolves.toEqual({
       tasks: [{ id: taskId }],
     });
-    expect(tasksService.listTasksForWorkspace).toHaveBeenCalledWith(workspaceId, user.id);
+    expect(tasksService.listTasksForWorkspace).toHaveBeenCalledWith({
+      workspaceId,
+      currentUserId: user.id,
+      dueBucket: filters.dueBucket,
+      assignment: filters.assignment,
+      referenceDate: filters.referenceDate,
+    });
+  });
+
+  it('rejects a mismatched workspaceId query param', async () => {
+    await expect(
+      controller.listTasks(user, workspaceId, {
+        workspaceId: '11111111-1111-1111-1111-111111111111',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(tasksService.listTasksForWorkspace).not.toHaveBeenCalled();
   });
 
   it('creates a task through the service and wraps the response', async () => {

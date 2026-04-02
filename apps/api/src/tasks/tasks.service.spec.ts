@@ -176,7 +176,10 @@ describe('TasksService', () => {
   it('lists tasks for a workspace with stable ordering', async () => {
     prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
 
-    const result = await service.listTasksForWorkspace(workspaceId, userId);
+    const result = await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+    });
 
     expect(membershipsService.requireMembership).toHaveBeenCalledWith(workspaceId, userId);
     expect(prisma.task.findMany).toHaveBeenCalledWith(
@@ -186,6 +189,57 @@ describe('TasksService', () => {
       }),
     );
     expect(result).toHaveLength(1);
+  });
+
+  it('applies assignment and due bucket filters to task listing', async () => {
+    prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
+
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      assignment: 'unassigned',
+      dueBucket: 'past_due',
+      referenceDate: '2026-04-15',
+    });
+
+    expect(prisma.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          workspaceId,
+          assigneeUserId: null,
+          dueDate: {
+            lt: new Date('2026-04-15T00:00:00.000Z'),
+          },
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      }),
+    );
+  });
+
+  it('defaults referenceDate to the current UTC date for date-based filters', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-04-02T18:30:00.000Z'));
+    prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
+
+    try {
+      await service.listTasksForWorkspace({
+        workspaceId,
+        currentUserId: userId,
+        dueBucket: 'today',
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+
+    expect(prisma.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          workspaceId,
+          dueDate: {
+            equals: new Date('2026-04-02T00:00:00.000Z'),
+          },
+        },
+      }),
+    );
   });
 
   it('returns task details when the task belongs to the workspace', async () => {
@@ -383,7 +437,12 @@ describe('TasksService', () => {
       new ForbiddenException('You do not belong to this workspace.'),
     );
 
-    await expect(service.listTasksForWorkspace(workspaceId, userId)).rejects.toBeInstanceOf(
+    await expect(
+      service.listTasksForWorkspace({
+        workspaceId,
+        currentUserId: userId,
+      }),
+    ).rejects.toBeInstanceOf(
       ForbiddenException,
     );
   });

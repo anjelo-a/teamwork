@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -7,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import type { TaskDeleteResponse, TaskListResponse, TaskResponse } from '@teamwork/types';
@@ -15,6 +17,8 @@ import { WorkspaceMemberGuard } from '../common/auth/workspace-member.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { ListTaskFiltersDto } from './dto/list-task-filters.dto';
+import type { TaskAssignmentFilter, TaskDueBucket } from './dto/list-task-filters.dto';
 import { UpdateTaskAssigneeDto } from './dto/update-task-assignee.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
@@ -29,9 +33,18 @@ export class TasksController {
   async listTasks(
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Query() filters: ListTaskFiltersDto,
   ): Promise<TaskListResponse> {
+    if (filters.workspaceId && filters.workspaceId !== workspaceId) {
+      throw new BadRequestException('workspaceId query param must match the route workspaceId.');
+    }
+
     return {
-      tasks: await this.tasksService.listTasksForWorkspace(workspaceId, user.id),
+      tasks: await this.tasksService.listTasksForWorkspace(this.buildListTasksInput(
+        workspaceId,
+        user.id,
+        filters,
+      )),
     };
   }
 
@@ -105,6 +118,26 @@ export class TasksController {
         dto.assigneeUserId,
         user.id,
       ),
+    };
+  }
+
+  private buildListTasksInput(
+    workspaceId: string,
+    currentUserId: string,
+    filters: ListTaskFiltersDto,
+  ): {
+    workspaceId: string;
+    currentUserId: string;
+    dueBucket?: TaskDueBucket;
+    assignment?: TaskAssignmentFilter;
+    referenceDate?: string | null;
+  } {
+    return {
+      workspaceId,
+      currentUserId,
+      ...(filters.dueBucket !== undefined ? { dueBucket: filters.dueBucket } : {}),
+      ...(filters.assignment !== undefined ? { assignment: filters.assignment } : {}),
+      ...(filters.referenceDate !== undefined ? { referenceDate: filters.referenceDate } : {}),
     };
   }
 }
