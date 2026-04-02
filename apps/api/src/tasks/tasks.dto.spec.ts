@@ -11,6 +11,7 @@ describe('Task DTOs', () => {
       title: '  Build   task   API  ',
       description: '  Add task CRUD endpoints.  ',
       assigneeUserId: '3f0efc0b-4d17-4cb5-a522-6ac5cda66b68',
+      dueDate: ' 2026-04-15 ',
     });
 
     const errors = await validate(dto);
@@ -18,6 +19,7 @@ describe('Task DTOs', () => {
     expect(errors).toHaveLength(0);
     expect(dto.title).toBe('Build task API');
     expect(dto.description).toBe('Add task CRUD endpoints.');
+    expect(dto.dueDate).toBe('2026-04-15');
   });
 
   it('rejects a blank create task title after normalization', async () => {
@@ -47,6 +49,7 @@ describe('Task DTOs', () => {
     const dto = plainToInstance(UpdateTaskDto, {
       title: '  Update   task ',
       description: '   ',
+      dueDate: '   ',
     });
 
     const errors = await validate(dto);
@@ -54,6 +57,19 @@ describe('Task DTOs', () => {
     expect(errors).toHaveLength(0);
     expect(dto.title).toBe('Update task');
     expect(dto.description).toBeNull();
+    expect(dto.dueDate).toBeNull();
+  });
+
+  it('rejects an invalid due date', async () => {
+    const dto = plainToInstance(CreateTaskDto, {
+      title: 'Build task API',
+      dueDate: '2026-02-29',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.property).toBe('dueDate');
   });
 
   it('rejects an invalid task status', async () => {

@@ -6,6 +6,7 @@ import {
   TASK_DESCRIPTION_MAX_LENGTH,
   TASK_TITLE_MAX_LENGTH,
 } from '@teamwork/validation';
+import { IsTaskDueDate, normalizeTaskDueDateInput } from '../task-due-date.util';
 
 function normalizeTaskTitleValue({ value }: TransformFnParams): unknown {
   return typeof value === 'string' ? normalizeTaskTitle(value) : value;
@@ -33,4 +34,10 @@ export class UpdateTaskDto {
   @MaxLength(TASK_DESCRIPTION_MAX_LENGTH)
   @Transform(normalizeTaskDescriptionValue)
   description?: string | null;
+
+  @ValidateIf((_object, value: unknown) => value !== undefined && value !== null)
+  @IsString()
+  @IsTaskDueDate()
+  @Transform(({ value }: TransformFnParams) => normalizeTaskDueDateInput(value))
+  dueDate?: string | null;
 }

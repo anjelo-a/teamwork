@@ -5,6 +5,7 @@ import type { TaskDetails, TaskStatus, TaskSummary, UserSummary } from '@teamwor
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { serializeTaskDueDate, tryParseTaskDueDate } from './task-due-date.util';
 
 const userSummarySelect = {
   id: true,
@@ -19,6 +20,7 @@ const taskDetailsSelect = {
   workspaceId: true,
   title: true,
   description: true,
+  dueDate: true,
   status: true,
   createdByUserId: true,
   assigneeUserId: true,
@@ -86,6 +88,7 @@ export class TasksService {
       title: string;
       description?: string | null;
       assigneeUserId?: string | null;
+      dueDate?: string | null;
     },
     currentUserId: string,
   ): Promise<TaskDetails> {
@@ -93,6 +96,7 @@ export class TasksService {
     await this.membershipsService.requireMembership(workspaceId, currentUserId);
 
     const assigneeUserId = input.assigneeUserId ?? null;
+    const dueDate = this.parseDueDateInput(input.dueDate);
     await this.ensureAssigneeBelongsToWorkspace(workspaceId, assigneeUserId, db);
 
     const task = await db.task.create({
@@ -100,6 +104,7 @@ export class TasksService {
         workspaceId,
         title: normalizeTaskTitle(input.title),
         description: this.normalizeDescription(input.description),
+        dueDate,
         createdByUserId: currentUserId,
         assigneeUserId,
       },
@@ -137,6 +142,7 @@ export class TasksService {
     input: {
       title?: string;
       description?: string | null;
+      dueDate?: string | null;
     },
     currentUserId: string,
   ): Promise<TaskDetails> {
@@ -151,6 +157,10 @@ export class TasksService {
 
     if (input.description !== undefined) {
       data.description = this.normalizeDescription(input.description);
+    }
+
+    if (input.dueDate !== undefined) {
+      data.dueDate = this.parseDueDateInput(input.dueDate);
     }
 
     if (Object.keys(data).length === 0) {
@@ -221,6 +231,7 @@ export class TasksService {
       workspaceId: task.workspaceId,
       title: task.title,
       description: task.description,
+      dueDate: serializeTaskDueDate(task.dueDate),
       status: task.status,
       createdByUserId: task.createdByUserId,
       assigneeUserId: task.assigneeUserId,
@@ -282,6 +293,20 @@ export class TasksService {
 
     const normalizedDescription = normalizeTaskDescription(description);
     return normalizedDescription === '' ? null : normalizedDescription;
+  }
+
+  private parseDueDateInput(dueDate: string | null | undefined): Date | null {
+    if (dueDate === undefined || dueDate === null) {
+      return null;
+    }
+
+    const parsedDueDate = tryParseTaskDueDate(dueDate);
+
+    if (!parsedDueDate) {
+      throw new BadRequestException('Due date must be a valid date in YYYY-MM-DD format.');
+    }
+
+    return parsedDueDate;
   }
 
   private toUserSummary(

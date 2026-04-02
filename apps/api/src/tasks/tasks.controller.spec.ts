@@ -67,6 +67,7 @@ describe('TasksController', () => {
       title: 'Build API',
       description: 'Add CRUD',
       assigneeUserId: null,
+      dueDate: '2026-04-15',
     };
     tasksService.createTask.mockResolvedValueOnce({ id: taskId });
 
@@ -86,7 +87,7 @@ describe('TasksController', () => {
   });
 
   it('updates a task through the service and wraps the response', async () => {
-    const dto: UpdateTaskDto = { title: 'Updated task' };
+    const dto: UpdateTaskDto = { title: 'Updated task', dueDate: null };
     tasksService.updateTask.mockResolvedValueOnce({ id: taskId });
 
     await expect(controller.updateTask(user, workspaceId, taskId, dto)).resolves.toEqual({

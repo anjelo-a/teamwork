@@ -27,6 +27,7 @@ describe('TasksService', () => {
     workspaceId: string;
     title: string;
     description: string | null;
+    dueDate: Date | null;
     status: PrismaTaskStatus;
     createdByUserId: string;
     assigneeUserId: string | null;
@@ -98,12 +99,17 @@ describe('TasksService', () => {
 
   it('creates a task with the authenticated user as creator', async () => {
     prisma.workspaceMembership.findUnique.mockResolvedValueOnce({ id: 'membership-2' });
-    prisma.task.create.mockResolvedValueOnce(buildTaskRecord());
+    prisma.task.create.mockResolvedValueOnce(
+      buildTaskRecord({
+        dueDate: new Date('2026-04-18T00:00:00.000Z'),
+      }),
+    );
 
     const maliciousInput = {
       title: '  Build   API  ',
       description: '  Add task routes  ',
       assigneeUserId: otherUserId,
+      dueDate: '2026-04-18',
       createdByUserId: 'spoofed-user',
     };
 
@@ -115,6 +121,7 @@ describe('TasksService', () => {
             workspaceId: string;
             title: string;
             description: string | null;
+            dueDate: Date | null;
             createdByUserId: string;
             assigneeUserId: string | null;
           };
@@ -127,10 +134,27 @@ describe('TasksService', () => {
       workspaceId,
       title: 'Build API',
       description: 'Add task routes',
+      dueDate: new Date('2026-04-18T00:00:00.000Z'),
       createdByUserId: userId,
       assigneeUserId: otherUserId,
     });
     expect(result.createdByUserId).toBe(userId);
+    expect(result.dueDate).toBe('2026-04-18');
+  });
+
+  it('rejects invalid due dates before creating a task', async () => {
+    await expect(
+      service.createTask(
+        workspaceId,
+        {
+          title: 'Build API',
+          dueDate: '2026-02-29',
+        },
+        userId,
+      ),
+    ).rejects.toThrow('Due date must be a valid date in YYYY-MM-DD format.');
+
+    expect(prisma.task.create).not.toHaveBeenCalled();
   });
 
   it('blocks non-members from creating tasks', async () => {
@@ -201,6 +225,7 @@ describe('TasksService', () => {
       buildTaskRecord({
         title: 'Updated title',
         description: null,
+        dueDate: new Date('2026-04-21T00:00:00.000Z'),
       }),
     );
 
@@ -210,6 +235,7 @@ describe('TasksService', () => {
       {
         title: '  Updated   title ',
         description: '   ',
+        dueDate: '2026-04-21',
       },
       userId,
     );
@@ -220,10 +246,12 @@ describe('TasksService', () => {
         data: {
           title: 'Updated title',
           description: null,
+          dueDate: new Date('2026-04-21T00:00:00.000Z'),
         },
       }),
     );
     expect(result.createdByUserId).toBe(userId);
+    expect(result.dueDate).toBe('2026-04-21');
   });
 
   it('rejects task updates when no updatable fields are provided', async () => {
@@ -233,6 +261,37 @@ describe('TasksService', () => {
       BadRequestException,
     );
     expect(prisma.task.update).not.toHaveBeenCalled();
+  });
+
+  it('supports clearing a task due date', async () => {
+    prisma.task.findFirst.mockResolvedValueOnce(
+      buildTaskRecord({
+        dueDate: new Date('2026-04-21T00:00:00.000Z'),
+      }),
+    );
+    prisma.task.update.mockResolvedValueOnce(
+      buildTaskRecord({
+        dueDate: null,
+      }),
+    );
+
+    const result = await service.updateTask(
+      workspaceId,
+      taskId,
+      {
+        dueDate: null,
+      },
+      userId,
+    );
+
+    expect(prisma.task.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          dueDate: null,
+        },
+      }),
+    );
+    expect(result.dueDate).toBeNull();
   });
 
   it('fails safely when updating a task outside the requested workspace', async () => {
@@ -370,6 +429,7 @@ describe('TasksService', () => {
       workspaceId,
       title: 'Build API',
       description: 'Add task routes',
+      dueDate: null,
       status: PrismaTaskStatus.todo,
       createdByUserId: userId,
       assigneeUserId: otherUserId,

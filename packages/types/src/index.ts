@@ -57,6 +57,7 @@ export interface TaskSummary {
   workspaceId: ID;
   title: string;
   description: string | null;
+  dueDate: string | null;
   status: TaskStatus;
   createdByUserId: ID;
   assigneeUserId: ID | null;

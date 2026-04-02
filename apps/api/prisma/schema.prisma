@@ -87,6 +87,7 @@ model Task {
   workspaceId     String     @map("workspace_id") @db.Uuid
   title           String
   description     String?
+  dueDate         DateTime?  @map("due_date") @db.Date
   status          TaskStatus @default(todo)
   createdByUserId String     @map("created_by_user_id") @db.Uuid
   assigneeUserId  String?    @map("assignee_user_id") @db.Uuid
