@@ -37,6 +37,14 @@ export interface WorkspaceInvitationSummary {
   revokedAt: string | null;
 }
 
+export type PublicWorkspaceInvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
+
+export interface PublicWorkspaceInvitationLookup {
+  invitation: WorkspaceInvitationSummary;
+  workspace: WorkspaceSummary;
+  status: PublicWorkspaceInvitationStatus;
+}
+
 export interface WorkspaceSummary {
   id: ID;
   name: string;

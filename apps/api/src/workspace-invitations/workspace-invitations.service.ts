@@ -10,6 +10,8 @@ import { Prisma, type WorkspaceInvitation } from '@prisma/client';
 import { normalizeEmail } from '@teamwork/validation';
 import type {
   InviteWorkspaceMemberResult,
+  PublicWorkspaceInvitationLookup,
+  PublicWorkspaceInvitationStatus,
   WorkspaceInvitationSummary,
   WorkspaceRole,
   WorkspaceSummary,
@@ -164,6 +166,25 @@ export class WorkspaceInvitationsService {
       invitation: this.toSummary(invitation),
       workspace: this.toWorkspaceSummary(invitation.workspace),
     }));
+  }
+
+  async getInvitationByToken(token: string): Promise<PublicWorkspaceInvitationLookup> {
+    const invitation = await toInvitationDatabase(this.prisma).workspaceInvitation.findFirst({
+      where: {
+        tokenHash: createInvitationTokenHash(token),
+      },
+      select: invitationWithWorkspaceSelect,
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found.');
+    }
+
+    return {
+      invitation: this.toSummary(invitation),
+      workspace: this.toWorkspaceSummary(invitation.workspace),
+      status: this.toPublicStatus(invitation),
+    };
   }
 
   async revokeInvitation(
@@ -364,6 +385,24 @@ export class WorkspaceInvitationsService {
     const expiresAt = new Date(from);
     expiresAt.setDate(expiresAt.getDate() + inviteTtlDays);
     return expiresAt;
+  }
+
+  private toPublicStatus(
+    invitation: Pick<WorkspaceInvitation, 'acceptedAt' | 'revokedAt' | 'expiresAt'>,
+  ): PublicWorkspaceInvitationStatus {
+    if (invitation.acceptedAt) {
+      return 'accepted';
+    }
+
+    if (invitation.revokedAt) {
+      return 'revoked';
+    }
+
+    if (invitation.expiresAt.getTime() <= Date.now()) {
+      return 'expired';
+    }
+
+    return 'pending';
   }
 }
 

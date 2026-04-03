@@ -521,4 +521,161 @@ describe('WorkspaceInvitationsService', () => {
     });
     expect(result).toHaveLength(1);
   });
+
+  it('returns public invitation metadata for a valid token', async () => {
+    prisma.workspaceInvitation.findFirst.mockResolvedValueOnce({
+      id: invitationId,
+      workspaceId,
+      email: 'invitee@example.com',
+      role: PrismaWorkspaceRole.member,
+      invitedByUserId: 'owner-1',
+      expiresAt: new Date('2026-04-10T00:00:00.000Z'),
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      acceptedAt: null,
+      revokedAt: null,
+      workspace: {
+        id: workspaceId,
+        name: 'Workspace',
+        slug: 'workspace',
+        createdByUserId: 'owner-1',
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-26T00:00:00.000Z'),
+      },
+    });
+
+    const result = await service.getInvitationByToken('plain-token');
+
+    expect(prisma.workspaceInvitation.findFirst).toHaveBeenCalledWith({
+      where: {
+        tokenHash: expect.any(String),
+      },
+      select: {
+        id: true,
+        workspaceId: true,
+        email: true,
+        role: true,
+        invitedByUserId: true,
+        expiresAt: true,
+        createdAt: true,
+        acceptedAt: true,
+        revokedAt: true,
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            createdByUserId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+    expect(result).toEqual({
+      invitation: {
+        id: invitationId,
+        workspaceId,
+        email: 'invitee@example.com',
+        role: 'member',
+        invitedByUserId: 'owner-1',
+        expiresAt: '2026-04-10T00:00:00.000Z',
+        createdAt: '2026-03-26T00:00:00.000Z',
+        acceptedAt: null,
+        revokedAt: null,
+      },
+      workspace: {
+        id: workspaceId,
+        name: 'Workspace',
+        slug: 'workspace',
+        createdByUserId: 'owner-1',
+        createdAt: '2026-03-26T00:00:00.000Z',
+        updatedAt: '2026-03-26T00:00:00.000Z',
+      },
+      status: 'pending',
+    });
+  });
+
+  it('rejects public invitation lookup when the token does not match an invitation', async () => {
+    prisma.workspaceInvitation.findFirst.mockResolvedValueOnce(null);
+
+    await expect(service.getInvitationByToken('missing-token')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('derives accepted, revoked, and expired public invitation statuses', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-04-03T00:00:00.000Z'));
+    prisma.workspaceInvitation.findFirst
+      .mockResolvedValueOnce({
+        id: invitationId,
+        workspaceId,
+        email: 'invitee@example.com',
+        role: PrismaWorkspaceRole.member,
+        invitedByUserId: 'owner-1',
+        expiresAt: new Date('2026-04-10T00:00:00.000Z'),
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+        acceptedAt: new Date('2026-04-01T00:00:00.000Z'),
+        revokedAt: null,
+        workspace: {
+          id: workspaceId,
+          name: 'Workspace',
+          slug: 'workspace',
+          createdByUserId: 'owner-1',
+          createdAt: new Date('2026-03-26T00:00:00.000Z'),
+          updatedAt: new Date('2026-03-26T00:00:00.000Z'),
+        },
+      })
+      .mockResolvedValueOnce({
+        id: invitationId,
+        workspaceId,
+        email: 'invitee@example.com',
+        role: PrismaWorkspaceRole.member,
+        invitedByUserId: 'owner-1',
+        expiresAt: new Date('2026-04-10T00:00:00.000Z'),
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+        acceptedAt: null,
+        revokedAt: new Date('2026-04-02T00:00:00.000Z'),
+        workspace: {
+          id: workspaceId,
+          name: 'Workspace',
+          slug: 'workspace',
+          createdByUserId: 'owner-1',
+          createdAt: new Date('2026-03-26T00:00:00.000Z'),
+          updatedAt: new Date('2026-03-26T00:00:00.000Z'),
+        },
+      })
+      .mockResolvedValueOnce({
+        id: invitationId,
+        workspaceId,
+        email: 'invitee@example.com',
+        role: PrismaWorkspaceRole.member,
+        invitedByUserId: 'owner-1',
+        expiresAt: new Date('2026-04-02T00:00:00.000Z'),
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+        acceptedAt: null,
+        revokedAt: null,
+        workspace: {
+          id: workspaceId,
+          name: 'Workspace',
+          slug: 'workspace',
+          createdByUserId: 'owner-1',
+          createdAt: new Date('2026-03-26T00:00:00.000Z'),
+          updatedAt: new Date('2026-03-26T00:00:00.000Z'),
+        },
+      });
+
+    try {
+      await expect(service.getInvitationByToken('accepted-token')).resolves.toMatchObject({
+        status: 'accepted',
+      });
+      await expect(service.getInvitationByToken('revoked-token')).resolves.toMatchObject({
+        status: 'revoked',
+      });
+      await expect(service.getInvitationByToken('expired-token')).resolves.toMatchObject({
+        status: 'expired',
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
