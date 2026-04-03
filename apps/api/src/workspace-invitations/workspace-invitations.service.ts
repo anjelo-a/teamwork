@@ -221,62 +221,33 @@ export class WorkspaceInvitationsService {
     invitationId: string,
     user: Pick<RequestUser, 'id' | 'email'>,
   ): Promise<{ membership: ReturnType<MembershipsService['toDetail']> }> {
-    const normalizedEmail = normalizeEmail(user.email);
-
     return this.prisma.$transaction(async (tx) => {
       const db = toInvitationDatabase(tx);
       const invitation = await db.workspaceInvitation.findFirst({
         where: {
           id: invitationId,
-          acceptedAt: null,
-          revokedAt: null,
         },
         select: invitationSummarySelect,
       });
 
-      if (!invitation) {
-        throw new NotFoundException('Invitation not found.');
-      }
+      return this.acceptExistingInvitation(invitation, user, tx);
+    });
+  }
 
-      if (invitation.email !== normalizedEmail) {
-        throw new ForbiddenException(
-          'You cannot accept an invitation for a different email address.',
-        );
-      }
-
-      const existingMembership = await db.workspaceMembership.findUnique({
+  async acceptInvitationByToken(
+    token: string,
+    user: Pick<RequestUser, 'id' | 'email'>,
+  ): Promise<{ membership: ReturnType<MembershipsService['toDetail']> }> {
+    return this.prisma.$transaction(async (tx) => {
+      const db = toInvitationDatabase(tx);
+      const invitation = await db.workspaceInvitation.findFirst({
         where: {
-          workspaceId_userId: {
-            workspaceId: invitation.workspaceId,
-            userId: user.id,
-          },
+          tokenHash: createInvitationTokenHash(token),
         },
-      });
-
-      if (existingMembership) {
-        throw new ConflictException('You are already a member of this workspace.');
-      }
-
-      const createdMembership = await this.membershipsService.createMembership(
-        {
-          workspaceId: invitation.workspaceId,
-          userId: user.id,
-          role: invitation.role,
-        },
-        tx,
-      );
-
-      await db.workspaceInvitation.update({
-        where: { id: invitation.id },
-        data: { acceptedAt: new Date() },
         select: invitationSummarySelect,
       });
 
-      const currentUser = await this.usersService.getByIdOrThrow(user.id, tx);
-
-      return {
-        membership: this.membershipsService.toDetail(createdMembership, currentUser),
-      };
+      return this.acceptExistingInvitation(invitation, user, tx);
     });
   }
 
@@ -403,6 +374,75 @@ export class WorkspaceInvitationsService {
     }
 
     return 'pending';
+  }
+
+  private async acceptExistingInvitation(
+    invitation: InvitationSummaryRecord | null,
+    user: Pick<RequestUser, 'id' | 'email'>,
+    tx: Prisma.TransactionClient,
+  ): Promise<{ membership: ReturnType<MembershipsService['toDetail']> }> {
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found.');
+    }
+
+    this.assertInvitationCanBeAccepted(invitation);
+
+    const normalizedEmail = normalizeEmail(user.email);
+    if (invitation.email !== normalizedEmail) {
+      throw new ForbiddenException(
+        'You cannot accept an invitation for a different email address.',
+      );
+    }
+
+    const existingMembership = await tx.workspaceMembership.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: invitation.workspaceId,
+          userId: user.id,
+        },
+      },
+    });
+
+    if (existingMembership) {
+      throw new ConflictException('You are already a member of this workspace.');
+    }
+
+    const createdMembership = await this.membershipsService.createMembership(
+      {
+        workspaceId: invitation.workspaceId,
+        userId: user.id,
+        role: invitation.role,
+      },
+      tx,
+    );
+
+    await tx.workspaceInvitation.update({
+      where: { id: invitation.id },
+      data: { acceptedAt: new Date() },
+      select: invitationSummarySelect,
+    });
+
+    const currentUser = await this.usersService.getByIdOrThrow(user.id, tx);
+
+    return {
+      membership: this.membershipsService.toDetail(createdMembership, currentUser),
+    };
+  }
+
+  private assertInvitationCanBeAccepted(
+    invitation: Pick<WorkspaceInvitation, 'acceptedAt' | 'revokedAt' | 'expiresAt'>,
+  ): void {
+    if (invitation.acceptedAt) {
+      throw new ConflictException('Invitation has already been accepted.');
+    }
+
+    if (invitation.revokedAt) {
+      throw new ConflictException('Invitation has been revoked.');
+    }
+
+    if (invitation.expiresAt.getTime() <= Date.now()) {
+      throw new ConflictException('Invitation has expired.');
+    }
   }
 }
 

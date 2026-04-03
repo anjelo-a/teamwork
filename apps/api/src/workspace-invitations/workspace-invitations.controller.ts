@@ -45,4 +45,12 @@ export class WorkspaceInvitationsController {
   ): Promise<{ membership: WorkspaceMemberDetail }> {
     return this.workspaceInvitationsService.acceptInvitation(invitationId, user);
   }
+
+  @Post('workspace-invitations/token/:token/accept')
+  async acceptInvitationByToken(
+    @CurrentUser() user: RequestUser,
+    @Param('token') token: string,
+  ): Promise<{ membership: WorkspaceMemberDetail }> {
+    return this.workspaceInvitationsService.acceptInvitationByToken(token, user);
+  }
 }
