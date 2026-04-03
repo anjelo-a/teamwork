@@ -942,7 +942,7 @@ describe('WorkspaceInvitationsService', () => {
     });
   });
 
-  it('rejects public invitation lookup when the token does not match an invitation', async () => {
+  it('unknown tokens are rejected correctly during lookup', async () => {
     prisma.workspaceInvitation.findFirst.mockResolvedValueOnce(null);
 
     await expect(service.getInvitationByToken('missing-token')).rejects.toBeInstanceOf(
@@ -950,7 +950,7 @@ describe('WorkspaceInvitationsService', () => {
     );
   });
 
-  it('derives accepted, revoked, and expired public invitation statuses', async () => {
+  it('expired, revoked, accepted, and unknown tokens are rejected correctly during lookup', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-04-03T00:00:00.000Z'));
     prisma.workspaceInvitation.findFirst
       .mockResolvedValueOnce({
