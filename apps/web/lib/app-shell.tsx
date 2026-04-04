@@ -165,8 +165,8 @@ export function deriveShellRouteContext(
       definition: {
         key: 'calendar',
         title: 'Calendar',
-        subtitle: `${workspaceName} is ready for date-based collaboration views.`,
-        eyebrow: 'Workspace planning',
+        subtitle: `Track ${workspaceName} due dates across month, week, and day views.`,
+        eyebrow: 'Workspace calendar',
       },
       currentWorkspace,
     };
