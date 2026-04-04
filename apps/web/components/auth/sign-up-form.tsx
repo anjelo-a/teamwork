@@ -13,10 +13,10 @@ import { getWorkspaceBoardHref } from '@/lib/app-shell';
 import { AuthFormError, AuthField, getAuthFieldClassName } from '@/components/auth/auth-form-controls';
 
 const INITIAL_VALUES: SignUpFormValues = {
-  displayName: '',
+  name: '',
   email: '',
   password: '',
-  workspaceName: '',
+  confirmPassword: '',
 };
 
 export function SignUpForm() {
@@ -85,14 +85,14 @@ export function SignUpForm() {
 
   return (
     <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
-      <AuthField label="Name" error={errors.displayName}>
+      <AuthField label="Name" error={errors.name}>
         <input
-          value={values.displayName}
+          value={values.name}
           autoComplete="name"
           onChange={(event) => {
-            handleFieldChange('displayName', event.target.value);
+            handleFieldChange('name', event.target.value);
           }}
-          className={getAuthFieldClassName(Boolean(errors.displayName))}
+          className={getAuthFieldClassName(Boolean(errors.name))}
           placeholder="Your full name"
         />
       </AuthField>
@@ -123,15 +123,16 @@ export function SignUpForm() {
         />
       </AuthField>
 
-      <AuthField label="Workspace name" error={errors.workspaceName}>
+      <AuthField label="Confirm Password" error={errors.confirmPassword}>
         <input
-          value={values.workspaceName}
-          autoComplete="organization"
+          type="password"
+          value={values.confirmPassword}
+          autoComplete="new-password"
           onChange={(event) => {
-            handleFieldChange('workspaceName', event.target.value);
+            handleFieldChange('confirmPassword', event.target.value);
           }}
-          className={getAuthFieldClassName(Boolean(errors.workspaceName))}
-          placeholder="Optional workspace name"
+          className={getAuthFieldClassName(Boolean(errors.confirmPassword))}
+          placeholder="Confirm your password"
         />
       </AuthField>
 
@@ -140,7 +141,7 @@ export function SignUpForm() {
         disabled={isSubmitting}
         className="mt-1 inline-flex min-h-12 items-center justify-center rounded-[0.95rem] bg-foreground px-5 text-base font-semibold text-white transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isSubmitting ? 'Creating account...' : 'Sign up'}
+        {isSubmitting ? 'Creating account...' : 'Create account'}
       </button>
 
       {errors.form ? <AuthFormError message={errors.form} /> : null}

@@ -2,7 +2,6 @@ import {
   DISPLAY_NAME_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
-  WORKSPACE_NAME_MAX_LENGTH,
   normalizeEmail,
 } from '@teamwork/validation';
 
@@ -14,12 +13,12 @@ export interface SignInFormValues {
 }
 
 export interface SignUpFormValues extends SignInFormValues {
-  displayName: string;
-  workspaceName: string;
+  name: string;
+  confirmPassword: string;
 }
 
 export type SignInFieldName = 'email' | 'password' | 'form';
-export type SignUpFieldName = 'displayName' | 'email' | 'password' | 'workspaceName' | 'form';
+export type SignUpFieldName = 'name' | 'email' | 'password' | 'confirmPassword' | 'form';
 
 export type SignInErrors = Partial<Record<SignInFieldName, string>>;
 export type SignUpErrors = Partial<Record<SignUpFieldName, string>>;
@@ -66,21 +65,20 @@ export function validateSignUpInput(values: SignUpFormValues): {
         displayName: string;
         email: string;
         password: string;
-        workspaceName?: string;
       }
     | null;
   errors: SignUpErrors;
 } {
-  const displayName = normalizeWhitespace(values.displayName);
+  const displayName = normalizeWhitespace(values.name);
   const email = normalizeEmail(values.email);
   const password = values.password;
-  const workspaceName = normalizeWhitespace(values.workspaceName);
+  const confirmPassword = values.confirmPassword;
   const errors: SignUpErrors = {};
 
   if (!displayName) {
-    errors.displayName = 'Display name is required.';
+    errors.name = 'Name is required.';
   } else if (displayName.length < 2 || displayName.length > DISPLAY_NAME_MAX_LENGTH) {
-    errors.displayName = `Display name must be 2-${String(DISPLAY_NAME_MAX_LENGTH)} characters.`;
+    errors.name = `Name must be 2-${String(DISPLAY_NAME_MAX_LENGTH)} characters.`;
   }
 
   if (!email) {
@@ -95,8 +93,10 @@ export function validateSignUpInput(values: SignUpFormValues): {
     errors.password = `Password must be ${String(PASSWORD_MIN_LENGTH)}-${String(PASSWORD_MAX_LENGTH)} characters.`;
   }
 
-  if (workspaceName && (workspaceName.length < 2 || workspaceName.length > WORKSPACE_NAME_MAX_LENGTH)) {
-    errors.workspaceName = `Workspace name must be 2-${String(WORKSPACE_NAME_MAX_LENGTH)} characters.`;
+  if (!confirmPassword) {
+    errors.confirmPassword = 'Confirm password is required.';
+  } else if (confirmPassword !== password) {
+    errors.confirmPassword = 'Passwords must match.';
   }
 
   if (Object.keys(errors).length > 0) {
@@ -111,7 +111,6 @@ export function validateSignUpInput(values: SignUpFormValues): {
       displayName,
       email,
       password,
-      ...(workspaceName ? { workspaceName } : {}),
     },
     errors,
   };
