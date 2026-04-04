@@ -1,6 +1,8 @@
 import type {
   AuthMeResponse,
+  CreateTaskInput,
   TaskListResponse,
+  TaskResponse,
   TaskAssignmentFilter,
   WorkspaceInvitationsResponse,
   WorkspaceMembersResponse,
@@ -9,6 +11,7 @@ import type {
 import {
   parseAuthMeResponse,
   parseTaskListResponse,
+  parseTaskResponse,
   parseWorkspaceInvitationsResponse,
   parseWorkspaceMembersResponse,
   parseWorkspaceResponse,
@@ -17,6 +20,8 @@ import {
 interface ApiRequestOptions<T> {
   accessToken: string;
   parser: (value: unknown) => T;
+  method?: 'GET' | 'POST';
+  body?: string;
 }
 
 export class ApiError extends Error {
@@ -97,12 +102,28 @@ export async function listWorkspaceTasks(
   });
 }
 
+export async function createWorkspaceTask(
+  workspaceId: string,
+  accessToken: string,
+  input: CreateTaskInput,
+): Promise<TaskResponse> {
+  return apiRequest(`/workspaces/${workspaceId}/tasks`, {
+    accessToken,
+    method: 'POST',
+    body: JSON.stringify(input),
+    parser: parseTaskResponse,
+  });
+}
+
 async function apiRequest<T>(path: string, options: ApiRequestOptions<T>): Promise<T> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    method: options.method ?? 'GET',
     headers: {
       Authorization: `Bearer ${options.accessToken}`,
       Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
     },
+    body: options.body ?? null,
     cache: 'no-store',
   });
 

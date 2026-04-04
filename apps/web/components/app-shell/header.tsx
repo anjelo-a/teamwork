@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import type { ShellRouteContext } from '@/lib/app-shell';
+import { useAppShellAction } from '@/lib/app-shell-action-context';
 
 interface AppShellHeaderProps {
   routeContext: ShellRouteContext;
 }
 
 export function AppShellHeader({ routeContext }: AppShellHeaderProps) {
-  const action = routeContext.definition.action;
+  const { actionOverride } = useAppShellAction();
+  const action = actionOverride ?? routeContext.definition.action;
 
   return (
     <header className="flex items-start justify-between gap-6 border-b border-line px-6 py-5 lg:px-10">
@@ -26,7 +28,15 @@ export function AppShellHeader({ routeContext }: AppShellHeaderProps) {
         ) : null}
       </div>
       <div className="flex min-h-12 items-start justify-end">
-        {action?.href ? (
+        {action?.onAction ? (
+          <button
+            type="button"
+            onClick={action.onAction}
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-strong"
+          >
+            {action.label}
+          </button>
+        ) : action?.href ? (
           <Link
             href={action.href}
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-strong"

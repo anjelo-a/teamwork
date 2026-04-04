@@ -16,9 +16,10 @@ export interface SidebarNavigationItem {
   icon: ReactNode;
 }
 
-interface ShellHeaderAction {
+export interface ShellHeaderAction {
   label: string;
   href?: string;
+  onAction?: () => void;
 }
 
 interface ShellRouteDefinition {

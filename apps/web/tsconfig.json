@@ -15,7 +15,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
-      "@teamwork/types": ["../../packages/types/src/index.ts"]
+      "@teamwork/types": ["../../packages/types/src/index.ts"],
+      "@teamwork/validation": ["../../packages/validation/src/index.ts"]
     }
   },
   "include": [

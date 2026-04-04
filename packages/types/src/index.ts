@@ -80,6 +80,13 @@ export interface TaskSummary {
 
 export type TaskDetails = TaskSummary;
 
+export interface CreateTaskInput {
+  title: string;
+  description?: string | null;
+  assigneeUserId?: ID | null;
+  dueDate?: string | null;
+}
+
 export interface TaskResponse {
   task: TaskDetails;
 }

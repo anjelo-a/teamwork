@@ -2,6 +2,7 @@ import type {
   AuthMeResponse,
   AuthenticatedWorkspace,
   TaskListResponse,
+  TaskResponse,
   UserSummary,
   WorkspaceInvitationSummary,
   WorkspaceInvitationsResponse,
@@ -55,6 +56,14 @@ export function parseTaskListResponse(value: unknown): TaskListResponse {
 
   return {
     tasks: readArray(record['tasks'], parseTaskSummary),
+  };
+}
+
+export function parseTaskResponse(value: unknown): TaskResponse {
+  const record = readRecord(value);
+
+  return {
+    task: parseTaskSummary(record['task']),
   };
 }
 

@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { CreateTaskModal } from '@/components/board/create-task-modal';
 import { BoardLoadingState } from '@/components/board/board-loading';
 import { BoardPage } from '@/components/board/board-page';
 import { PageStatusCard, PageSurface } from '@/components/app-shell/page-state';
@@ -20,6 +21,7 @@ import {
   type BoardStatusFilter,
 } from '@/lib/board';
 import { useAuthenticatedApiResource } from '@/lib/hooks/use-authenticated-api-resource';
+import { useAppShellAction } from '@/lib/app-shell-action-context';
 import { readWorkspaceIdFromParams } from '@/lib/route-params';
 
 const STATUS_OPTIONS: BoardStatusFilter[] = ['all', 'todo', 'in_progress', 'done'];
@@ -30,6 +32,9 @@ export default function WorkspaceBoardPage() {
   const { auth } = useAuthSession();
   const [statusFilter, setStatusFilter] = useState(DEFAULT_BOARD_STATUS_FILTER);
   const [assigneeFilter, setAssigneeFilter] = useState(DEFAULT_BOARD_ASSIGNEE_FILTER);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [taskRefreshNonce, setTaskRefreshNonce] = useState(0);
+  const { setActionOverride } = useAppShellAction();
 
   const workspaceQuery = useAuthenticatedApiResource({
     key: `workspace:${workspaceId}:board`,
@@ -55,7 +60,7 @@ export default function WorkspaceBoardPage() {
   const backendAssignmentFilter = getBackendAssignmentFilter(resolvedAssigneeFilter);
 
   const tasksQuery = useAuthenticatedApiResource({
-    key: `workspace:${workspaceId}:tasks:board:${backendAssignmentFilter ?? 'everyone'}`,
+    key: `workspace:${workspaceId}:tasks:board:${backendAssignmentFilter ?? 'everyone'}:${String(taskRefreshNonce)}`,
     load: (accessToken) =>
       listWorkspaceTasks(
         workspaceId,
@@ -63,6 +68,30 @@ export default function WorkspaceBoardPage() {
         backendAssignmentFilter ? { assignment: backendAssignmentFilter } : undefined,
       ),
   });
+
+  const openCreateTaskModal = useCallback(() => {
+    setIsCreateTaskOpen(true);
+  }, []);
+
+  const closeCreateTaskModal = useCallback(() => {
+    setIsCreateTaskOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (workspaceQuery.status !== 'success') {
+      setActionOverride(null);
+      return;
+    }
+
+    setActionOverride({
+      label: 'Create Task',
+      onAction: openCreateTaskModal,
+    });
+
+    return () => {
+      setActionOverride(null);
+    };
+  }, [openCreateTaskModal, setActionOverride, workspaceQuery.status]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1460px] flex-col">
@@ -110,6 +139,17 @@ export default function WorkspaceBoardPage() {
           />
         </div>
       ) : null}
+
+      <CreateTaskModal
+        open={isCreateTaskOpen}
+        workspaceId={workspaceId}
+        members={membersQuery.status === 'success' ? membersQuery.data.members : null}
+        membersUnavailable={membersQuery.status === 'error'}
+        onClose={closeCreateTaskModal}
+        onCreated={() => {
+          setTaskRefreshNonce((current) => current + 1);
+        }}
+      />
     </div>
   );
 }
