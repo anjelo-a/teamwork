@@ -31,8 +31,8 @@ export function getButtonClassName(
   size: ButtonSize = 'default',
 ): string {
   const base =
-    'inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] px-5 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60';
-  const sizeClass = size === 'compact' ? 'min-h-10 text-sm' : 'min-h-11 text-sm';
+    'inline-flex items-center justify-center gap-2 rounded-[0.9rem] px-5 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60';
+  const sizeClass = size === 'compact' ? 'min-h-9 text-[0.92rem]' : 'min-h-10 text-[0.95rem]';
 
   const variantClass =
     variant === 'secondary'
@@ -41,7 +41,7 @@ export function getButtonClassName(
         ? 'border border-transparent bg-transparent text-muted hover:border-line hover:bg-surface-muted hover:text-foreground'
         : variant === 'success'
           ? 'bg-[var(--color-success)] text-[#163735] hover:bg-[var(--color-success-strong)]'
-          : 'bg-accent text-white hover:bg-accent-strong';
+          : 'bg-accent text-white shadow-[0_10px_24px_rgba(31,111,88,0.16)] hover:bg-accent-strong';
 
   return `${base} ${sizeClass} ${variantClass}`;
 }

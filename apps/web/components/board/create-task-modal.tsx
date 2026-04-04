@@ -132,7 +132,7 @@ export function CreateTaskModal({
     <Dialog
       open={open}
       title="Create Task"
-      description="Add a new task to this workspace board. Title and description come first, with assignment and due date available when needed."
+      description="Add a new task to this workspace board."
       onClose={handleClose}
       footer={
         <>
@@ -154,12 +154,11 @@ export function CreateTaskModal({
         </>
       }
     >
-      <form id="create-task-form" className="flex flex-col gap-6" onSubmit={handleFormSubmit}>
+      <form id="create-task-form" className="flex flex-col gap-5" onSubmit={handleFormSubmit}>
         <Field
           label="Title"
           required
           error={errors.title}
-          hint="Keep the task title concise and clear."
         >
           <input
             value={values.title}
@@ -175,7 +174,6 @@ export function CreateTaskModal({
         <Field
           label="Description"
           error={errors.description}
-          hint="Optional context for the work to be done."
         >
           <textarea
             value={values.description}
@@ -183,20 +181,20 @@ export function CreateTaskModal({
               handleFieldChange('description', event.target.value);
             }}
             maxLength={5000}
-            rows={6}
-            className={`${getTextControlClassName(Boolean(errors.description), 'strong')} resize-none`}
-            placeholder="Add more detail if the task needs it"
+            rows={5}
+            className={`${getTextControlClassName(Boolean(errors.description), 'strong')} min-h-[132px] resize-none`}
+            placeholder="Description"
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-4 rounded-[calc(var(--radius-panel)-0.15rem)] border border-line bg-surface-muted/70 p-4">
+        <div className="grid grid-cols-2 gap-3 rounded-[0.95rem] border border-line/80 bg-surface-muted/55 p-3.5">
           <Field
             label="Assign To"
             error={errors.assigneeUserId}
             hint={
               isAssigneeSelectionDisabled
-                ? 'Members are not ready yet, so assignee selection is temporarily disabled.'
-                : 'Optional workspace member assignment.'
+                ? 'Members are still loading.'
+                : 'Optional workspace member.'
             }
           >
             <select
@@ -219,7 +217,7 @@ export function CreateTaskModal({
           <Field
             label="Due Date"
             error={errors.dueDate}
-            hint="Optional deadline stored as a date only."
+            hint="Optional deadline."
           >
             <input
               type="date"

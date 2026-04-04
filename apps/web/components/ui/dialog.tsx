@@ -70,7 +70,7 @@ export function Dialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f171433] px-6 py-10 backdrop-blur-[3px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,20,0.18)] px-6 py-10 backdrop-blur-[2px]"
       onClick={handleOverlayClick}
     >
       <div
@@ -78,15 +78,15 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className={`w-full max-w-[680px] rounded-[var(--radius-panel)] border border-line bg-surface-strong shadow-[0_28px_80px_rgba(15,23,20,0.18)] ${panelClassName ?? ''}`}
+        className={`w-full max-w-[628px] rounded-[1.1rem] border border-line/90 bg-surface-strong shadow-[0_18px_48px_rgba(15,23,20,0.12)] ${panelClassName ?? ''}`}
       >
-        <div className="flex items-start justify-between gap-6 border-b border-line px-7 py-6">
+        <div className="flex items-start justify-between gap-5 border-b border-line px-6 py-5">
           <div className="min-w-0">
-            <h2 id={titleId} className="text-[1.65rem] font-semibold tracking-tight text-foreground">
+            <h2 id={titleId} className="text-[1.45rem] font-semibold tracking-tight text-foreground">
               {title}
             </h2>
             {description ? (
-              <p id={descriptionId} className="mt-2 text-sm leading-6 text-muted">
+              <p id={descriptionId} className="mt-1.5 text-[0.92rem] leading-6 text-muted">
                 {description}
               </p>
             ) : null}
@@ -106,10 +106,10 @@ export function Dialog({
           </div>
         </div>
 
-        <div className={bodyClassName ?? 'px-7 py-6'}>{children}</div>
+        <div className={bodyClassName ?? 'px-6 py-5'}>{children}</div>
 
         {footer ? (
-          <div className="flex items-center justify-end gap-3 border-t border-line px-7 py-5">
+          <div className="flex items-center justify-end gap-2.5 border-t border-line px-6 py-4">
             {footer}
           </div>
         ) : null}
