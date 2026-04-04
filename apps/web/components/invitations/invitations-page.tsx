@@ -86,12 +86,12 @@ export function InvitationsPage({
 
   return (
     <>
-      <section className="flex items-start justify-between gap-6">
+      <section className="flex items-start justify-between gap-5">
         <div>
-          <h2 className="text-[2rem] font-semibold tracking-tight text-foreground">
+          <h2 className="text-[1.82rem] font-semibold tracking-tight text-foreground">
             Invitations
           </h2>
-          <p className="mt-2 text-[1.08rem] leading-7 text-[#8a98af]">
+          <p className="mt-1.5 text-[0.98rem] leading-6 text-[#8a98af]">
             Invite new members to your workspace
           </p>
         </div>
@@ -102,7 +102,7 @@ export function InvitationsPage({
             onClick={() => {
               setIsInviteModalOpen(true);
             }}
-            className="px-6 text-base"
+            className="min-h-10 px-5 text-[0.95rem]"
           >
             Invite Member
           </AppButton>
@@ -118,12 +118,12 @@ export function InvitationsPage({
 
       {successResult ? (
         <section className="rounded-[calc(var(--radius-control)+0.3rem)] border border-line bg-[var(--color-info-soft)] px-6 py-5">
-          <p className="text-sm font-semibold text-foreground">
+          <p className="text-[0.88rem] font-semibold text-foreground">
             Share this invitation link:
           </p>
           <a
             href={successResult.inviteUrl}
-            className="mt-2 block break-all text-sm font-medium text-accent underline decoration-transparent underline-offset-4 transition-colors hover:decoration-current"
+            className="mt-2 block break-all text-[0.88rem] font-medium leading-6 text-accent underline decoration-transparent underline-offset-4 transition-colors hover:decoration-current"
           >
             {successResult.inviteUrl}
           </a>
@@ -132,9 +132,9 @@ export function InvitationsPage({
 
       <ContentPanel>
         {sortedItems.length === 0 ? (
-          <div className="px-8 py-8">
-            <p className="text-lg font-semibold text-foreground">No pending invitations</p>
-            <p className="mt-2 text-sm leading-6 text-muted">
+          <div className="px-7 py-7">
+            <p className="text-[1.05rem] font-semibold text-foreground">No pending invitations</p>
+            <p className="mt-2 text-[0.9rem] leading-6 text-muted">
               New invitations will appear here after they are created.
             </p>
           </div>
@@ -176,28 +176,28 @@ export function InvitationsPage({
 
 export function InvitationsPageSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
-      <section className="flex items-start justify-between gap-6">
+    <div className="flex flex-col gap-5">
+      <section className="flex items-start justify-between gap-5">
         <div>
-          <div className="h-10 w-44 animate-pulse rounded-2xl bg-black/10" />
-          <div className="mt-3 h-6 w-80 animate-pulse rounded-2xl bg-black/5" />
+          <div className="h-9 w-40 animate-pulse rounded-xl bg-black/10" />
+          <div className="mt-2.5 h-5 w-72 animate-pulse rounded-xl bg-black/5" />
         </div>
-        <div className="h-12 w-36 animate-pulse rounded-[0.95rem] bg-black/10" />
+        <div className="h-10 w-32 animate-pulse rounded-[0.85rem] bg-black/10" />
       </section>
 
       <section className="rounded-[1.5rem] border border-line bg-surface-strong shadow-[0_18px_38px_rgba(15,23,20,0.06)]">
-        <div className="px-8 py-5">
+        <div className="px-7 py-4.5">
           <div className="flex items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 animate-pulse rounded-full bg-black/10" />
+            <div className="flex items-center gap-3.5">
+              <div className="h-11 w-11 animate-pulse rounded-full bg-black/10" />
               <div className="space-y-2">
-                <div className="h-5 w-64 animate-pulse rounded-full bg-black/10" />
+                <div className="h-5 w-60 animate-pulse rounded-full bg-black/10" />
                 <div className="h-4 w-32 animate-pulse rounded-full bg-black/5" />
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-20 animate-pulse rounded-full bg-black/5" />
-              <div className="h-8 w-8 animate-pulse rounded-full bg-black/5" />
+            <div className="flex items-center gap-3">
+              <div className="h-7 w-18 animate-pulse rounded-full bg-black/5" />
+              <div className="h-8 w-8 animate-pulse rounded-[0.8rem] bg-black/5" />
             </div>
           </div>
         </div>
@@ -220,23 +220,23 @@ function InvitationRow({
   onRevoke: (invitation: WorkspaceInvitationSummary) => Promise<void>;
 }) {
   return (
-    <div className="px-8 py-5">
+    <div className="px-7 py-4.5">
       <div className="flex items-center justify-between gap-6">
-        <div className="flex min-w-0 items-center gap-4">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-line bg-[#f7faff] text-[#8c9ab1]">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-[#f7faff] text-[#8c9ab1]">
             <InviteIcon />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-[1.26rem] font-semibold tracking-tight text-foreground">
+            <p className="truncate text-[1.14rem] font-semibold tracking-tight text-foreground">
               {invitation.email}
             </p>
-            <p className="truncate text-[0.98rem] leading-6 text-[#95a3b9]">
+            <p className="truncate text-[0.9rem] leading-6 text-[#95a3b9]">
               Invited {formatInvitationDate(invitation.createdAt)}
             </p>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-4">
+        <div className="flex shrink-0 items-center gap-3">
           <StatusBadge label="Pending" tone="success" />
           {isOwner ? (
             <button
@@ -255,7 +255,7 @@ function InvitationRow({
       </div>
 
       {errorMessage ? (
-        <p className="mt-3 pl-16 text-sm leading-6 text-danger">{errorMessage}</p>
+        <p className="mt-2.5 pl-14 text-[0.88rem] leading-6 text-danger">{errorMessage}</p>
       ) : null}
     </div>
   );
@@ -263,7 +263,7 @@ function InvitationRow({
 
 function InviteIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9">
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.9">
       <path d="M4.5 7.5h15v9h-15z" />
       <path d="m5.5 8.5 6.5 5 6.5-5" />
     </svg>
