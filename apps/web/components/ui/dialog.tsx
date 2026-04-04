@@ -70,7 +70,7 @@ export function Dialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,20,0.18)] px-6 py-10 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.12)] px-6 py-10 backdrop-blur-[1px]"
       onClick={handleOverlayClick}
     >
       <div
@@ -78,7 +78,7 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className={`w-full max-w-[628px] rounded-[1.1rem] border border-line/90 bg-surface-strong shadow-[0_18px_48px_rgba(15,23,20,0.12)] ${panelClassName ?? ''}`}
+        className={`w-full max-w-[628px] rounded-[1.1rem] border border-line bg-surface-strong shadow-[0_18px_42px_rgba(15,23,42,0.08)] ${panelClassName ?? ''}`}
       >
         <div className="flex items-start justify-between gap-5 border-b border-line px-6 py-5">
           <div className="min-w-0">

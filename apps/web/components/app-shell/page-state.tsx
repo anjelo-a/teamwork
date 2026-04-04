@@ -13,7 +13,7 @@ interface PageStatusCardProps {
 
 const toneClasses: Record<StatusTone, string> = {
   default: 'border-line bg-surface-strong',
-  warning: 'border-line-strong bg-accent-soft',
+  warning: 'border-line bg-[var(--color-success-soft)]',
   danger: 'border-line-strong bg-danger-soft',
 };
 
@@ -89,11 +89,11 @@ export function StatusBadge({
 }) {
   const toneClass =
     tone === 'accent'
-      ? 'bg-accent-soft text-accent'
+      ? 'bg-accent text-white'
       : tone === 'success'
-        ? 'bg-success-soft text-[var(--color-success)]'
+        ? 'bg-success-soft text-foreground'
         : tone === 'progress'
-          ? 'bg-[#e8eef8] text-[#365489]'
+          ? 'bg-[var(--color-info-soft)] text-foreground'
           : 'bg-surface-muted text-muted';
 
   return (

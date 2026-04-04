@@ -131,13 +131,13 @@ function TaskInboxRow({
       <div>
         <h3 className="text-[1.12rem] font-semibold tracking-tight text-foreground">{task.title}</h3>
         {task.description ? (
-          <p className="mt-1.5 line-clamp-2 text-[0.92rem] leading-6 text-[#7a8aa2]">
+          <p className="mt-1.5 line-clamp-2 text-[0.92rem] leading-6 text-muted">
             {task.description}
           </p>
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.88rem] text-[#8d9ab0]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.88rem] text-muted">
         <TaskMeta label={task.assigneeUser?.displayName ?? 'Unassigned'} />
         <TaskMeta label={`By ${task.createdByUser.displayName}`} />
         <TaskMeta label={`Updated ${formatDateTime(task.updatedAt)}`} />

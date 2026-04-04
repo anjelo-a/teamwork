@@ -18,7 +18,7 @@ export function CalendarWeekView({ days, onTaskOpen }: CalendarWeekViewProps) {
             <span
               className={`inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-[1rem] font-semibold ${
                 day.isSelected
-                  ? 'bg-[#65d8c8] text-white'
+                  ? 'bg-accent text-white'
                   : day.isToday
                     ? 'border border-accent/25 text-accent'
                     : 'text-foreground'

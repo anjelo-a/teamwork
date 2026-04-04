@@ -55,6 +55,6 @@ export function FormMessage({
 
 export function getTextControlClassName(hasError: boolean, tone: 'muted' | 'strong' = 'muted'): string {
   return `min-h-11 rounded-[0.85rem] border px-3.5 py-2.5 text-[0.95rem] text-foreground outline-none transition-colors placeholder:text-muted/70 ${
-    tone === 'strong' ? 'bg-surface-strong' : 'bg-surface-muted'
-  } ${hasError ? 'border-danger/55 focus:border-danger' : 'border-line/90 focus:border-accent'}`;
+    tone === 'strong' ? 'bg-surface-strong' : 'bg-surface-strong'
+  } ${hasError ? 'border-danger/55 focus:border-danger' : 'border-line focus:border-accent'}`;
 }

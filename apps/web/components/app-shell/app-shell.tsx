@@ -69,7 +69,7 @@ export function AppShell({ children }: AppShellProps): ReactNode {
   return (
     <div className="flex min-h-screen gap-3.5 p-3.5 lg:gap-4 lg:p-4">
       <SidebarNavigation currentPath={pathname} currentWorkspace={routeContext.currentWorkspace} />
-      <div className="shell-panel flex min-h-[calc(100vh-1.75rem)] flex-1 flex-col overflow-hidden rounded-[1.45rem] border border-line bg-surface shadow-[var(--shadow)]">
+      <div className="shell-panel flex min-h-[calc(100vh-1.75rem)] flex-1 flex-col overflow-hidden rounded-[1.45rem] border border-line bg-surface-strong shadow-[var(--shadow)]">
         <AppShellHeader routeContext={routeContext} />
         <div className="shell-scrollbar shell-grid flex-1 overflow-y-auto px-4 py-4 lg:px-6 lg:py-5">
           {children}

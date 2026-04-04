@@ -21,7 +21,7 @@ export function CalendarMonthView({
 
   return (
     <div className="overflow-hidden rounded-b-[1.4rem]">
-      <div className="grid grid-cols-7 border-b border-line bg-surface-muted/72">
+      <div className="grid grid-cols-7 border-b border-line bg-surface-muted">
         {weekdayHeaders.map((header) => (
           <div
             key={header}
@@ -48,7 +48,7 @@ export function CalendarMonthView({
                 <span
                   className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[0.84rem] font-semibold ${
                     cell.isSelected
-                      ? 'bg-[#65d8c8] text-white'
+                      ? 'bg-accent text-white'
                       : cell.isToday
                         ? 'border border-accent/25 text-accent'
                         : cell.inCurrentMonth

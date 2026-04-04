@@ -18,7 +18,7 @@ export function CalendarTaskChip({ task, variant, onOpen }: CalendarTaskChipProp
         onClick={() => {
           onOpen(task.id);
         }}
-        className="flex w-full items-center justify-between gap-3.5 rounded-[0.95rem] border border-line bg-surface-strong px-4 py-3.5 text-left shadow-[0_8px_20px_rgba(15,23,20,0.05)] transition-colors hover:border-line-strong"
+        className="flex w-full items-center justify-between gap-3.5 rounded-[0.95rem] border border-line bg-surface-strong px-4 py-3.5 text-left shadow-[0_8px_20px_rgba(15,23,42,0.05)] transition-colors hover:border-line-strong"
       >
         <div className="min-w-0">
           <p className="truncate text-[0.96rem] font-semibold tracking-tight text-foreground">{task.title}</p>

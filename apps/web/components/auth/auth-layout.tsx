@@ -34,7 +34,7 @@ export function AuthLayout({
 
           <p className="mt-5 text-center text-[0.92rem] text-muted">
             {helperText}{' '}
-            <Link href={helperHref} className="font-semibold text-foreground transition-colors hover:text-accent">
+            <Link href={helperHref} className="font-semibold text-accent transition-colors hover:text-accent-strong">
               {helperLabel}
             </Link>
           </p>

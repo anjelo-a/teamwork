@@ -533,7 +533,7 @@ export function TaskDetailsModal({
                     }}
                     disabled={isDeleting}
                     size="compact"
-                    className="bg-danger text-white hover:bg-[#7b2a24]"
+                    className="bg-danger text-white hover:bg-[#6f241f]"
                   >
                     {isDeleting ? 'Deleting...' : 'Delete Task'}
                   </AppButton>

@@ -36,18 +36,18 @@ export function getButtonClassName(
 
   const variantClass =
     variant === 'secondary'
-      ? 'border border-line bg-surface-muted text-foreground hover:border-line-strong'
+      ? 'border border-line bg-surface-strong text-foreground hover:border-line-strong hover:bg-surface-muted'
       : variant === 'ghost'
         ? 'border border-transparent bg-transparent text-muted hover:border-line hover:bg-surface-muted hover:text-foreground'
         : variant === 'success'
-          ? 'bg-[var(--color-success)] text-[#163735] hover:bg-[var(--color-success-strong)]'
-          : 'bg-accent text-white shadow-[0_10px_24px_rgba(31,111,88,0.16)] hover:bg-accent-strong';
+          ? 'bg-[var(--color-success)] text-[#0f172a] shadow-[0_8px_18px_rgba(134,239,172,0.22)] hover:bg-[var(--color-success-strong)]'
+          : 'bg-accent text-white shadow-[0_10px_22px_rgba(51,65,85,0.16)] hover:bg-accent-strong';
 
   return `${base} ${sizeClass} ${variantClass}`;
 }
 
 export function getIconButtonClassName(): string {
-  return 'inline-flex h-9 w-9 items-center justify-center rounded-[0.8rem] border border-transparent bg-transparent text-muted transition-colors hover:border-line hover:bg-surface-muted/80 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60';
+  return 'inline-flex h-9 w-9 items-center justify-center rounded-[0.8rem] border border-transparent bg-transparent text-muted transition-colors hover:border-line hover:bg-surface-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60';
 }
 
 function joinClassNames(...values: Array<string | undefined>): string {

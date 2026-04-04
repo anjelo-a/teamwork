@@ -91,7 +91,7 @@ export function InvitationsPage({
           <h2 className="text-[1.82rem] font-semibold tracking-tight text-foreground">
             Invitations
           </h2>
-          <p className="mt-1.5 text-[0.98rem] leading-6 text-[#8a98af]">
+          <p className="mt-1.5 text-[0.98rem] leading-6 text-muted">
             Invite new members to your workspace
           </p>
         </div>
@@ -185,7 +185,7 @@ export function InvitationsPageSkeleton() {
         <div className="h-10 w-32 animate-pulse rounded-[0.85rem] bg-black/10" />
       </section>
 
-      <section className="rounded-[1.5rem] border border-line bg-surface-strong shadow-[0_18px_38px_rgba(15,23,20,0.06)]">
+      <section className="rounded-[1.5rem] border border-line bg-surface-strong shadow-[0_18px_38px_rgba(15,23,42,0.06)]">
         <div className="px-7 py-4.5">
           <div className="flex items-center justify-between gap-6">
             <div className="flex items-center gap-3.5">
@@ -223,14 +223,14 @@ function InvitationRow({
     <div className="px-7 py-4.5">
       <div className="flex items-center justify-between gap-6">
         <div className="flex min-w-0 items-center gap-3.5">
-          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-[#f7faff] text-[#8c9ab1]">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface-muted text-muted">
             <InviteIcon />
           </div>
           <div className="min-w-0">
             <p className="truncate text-[1.14rem] font-semibold tracking-tight text-foreground">
               {invitation.email}
             </p>
-            <p className="truncate text-[0.9rem] leading-6 text-[#95a3b9]">
+            <p className="truncate text-[0.9rem] leading-6 text-muted">
               Invited {formatInvitationDate(invitation.createdAt)}
             </p>
           </div>

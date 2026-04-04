@@ -146,7 +146,7 @@ export function MembersPageSkeleton() {
           </div>
         ))}
       </div>
-      <div className="rounded-b-[1.25rem] border-t border-line bg-[#edf9f1] px-7 py-4.5">
+      <div className="rounded-b-[1.25rem] border-t border-line bg-success-soft px-7 py-4.5">
         <div className="h-5 w-60 animate-pulse rounded-full bg-black/5" />
         <div className="mt-2.5 h-4 w-[28rem] max-w-full animate-pulse rounded-full bg-black/5" />
       </div>
@@ -179,7 +179,7 @@ function MemberRow({
             <p className="truncate text-[1.18rem] font-semibold tracking-tight text-foreground">
               {member.user.displayName}
             </p>
-            <p className="truncate text-[0.93rem] leading-6 text-[#93a0b2]">{member.user.email}</p>
+            <p className="truncate text-[0.93rem] leading-6 text-muted">{member.user.email}</p>
           </div>
         </div>
 
@@ -211,7 +211,7 @@ function MemberAvatar({ displayName }: { displayName: string }) {
     .join('') || 'M';
 
   return (
-    <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#38465e] text-[0.88rem] font-semibold text-white">
+    <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-accent text-[0.88rem] font-semibold text-white">
       {initials}
     </div>
   );
@@ -230,7 +230,7 @@ function RoleControl({
 }) {
   if (!isEditable) {
     return (
-      <div className="inline-flex min-h-10 w-full items-center justify-center rounded-[0.85rem] border border-line bg-[#f7faff] px-3.5 text-[0.9rem] font-semibold capitalize text-[#7e8da5]">
+      <div className="inline-flex min-h-10 w-full items-center justify-center rounded-[0.85rem] border border-line bg-surface-muted px-3.5 text-[0.9rem] font-semibold capitalize text-muted">
         {value}
       </div>
     );
@@ -247,7 +247,7 @@ function RoleControl({
           onChange(nextRole);
         }
       }}
-      className={`${getTextControlClassName(false)} min-h-10 w-full px-3.5 py-2 text-[0.9rem] font-semibold capitalize text-[#5f7088] disabled:cursor-not-allowed disabled:opacity-60`}
+      className={`${getTextControlClassName(false)} min-h-10 w-full px-3.5 py-2 text-[0.9rem] font-semibold capitalize text-foreground disabled:cursor-not-allowed disabled:opacity-60`}
     >
       <option value="owner">Owner</option>
       <option value="member">Member</option>
@@ -257,12 +257,12 @@ function RoleControl({
 
 function OwnerNotice() {
   return (
-    <div className="rounded-b-[1.25rem] border-t border-line bg-[#edf9f1] px-7 py-4.5">
+    <div className="rounded-b-[1.25rem] border-t border-line bg-success-soft px-7 py-4.5">
       <div className="flex items-start gap-2.5">
         <NoticeIcon />
         <div>
           <p className="text-[0.98rem] font-semibold text-foreground">At least one owner required</p>
-          <p className="mt-1 text-[0.92rem] leading-6 text-[#7b8e88]">
+          <p className="mt-1 text-[0.92rem] leading-6 text-muted">
             You cannot change the last owner&apos;s role. Promote another member to owner first.
           </p>
         </div>
@@ -275,7 +275,7 @@ function NoticeIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="mt-0.5 h-4.5 w-4.5 shrink-0 text-[#5f6f88]"
+      className="mt-0.5 h-4.5 w-4.5 shrink-0 text-accent"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.9"

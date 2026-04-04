@@ -79,7 +79,7 @@ export function InvitationInboxPage({
         <h2 className="text-[1.82rem] font-semibold tracking-tight text-foreground">
           Invitation Inbox
         </h2>
-        <p className="mt-1.5 text-[0.98rem] leading-6 text-[#8a98af]">
+        <p className="mt-1.5 text-[0.98rem] leading-6 text-muted">
           Workspace invitations you&apos;ve received
         </p>
       </section>
@@ -89,7 +89,7 @@ export function InvitationInboxPage({
           <p className="text-[0.9rem] font-semibold text-foreground">
             Invitation accepted for {successWorkspaceName}
           </p>
-          <p className="mt-1.5 text-[0.88rem] leading-6 text-[#6d7e95]">
+          <p className="mt-1.5 text-[0.88rem] leading-6 text-muted">
             Your workspace access is being refreshed in the background.
           </p>
         </section>
@@ -133,7 +133,7 @@ export function InvitationInboxPageSkeleton() {
         <div className="mt-2.5 h-5 w-72 animate-pulse rounded-xl bg-black/5" />
       </section>
 
-      <section className="rounded-[1.5rem] border border-line bg-surface-strong shadow-[0_18px_38px_rgba(15,23,20,0.06)]">
+      <section className="rounded-[1.5rem] border border-line bg-surface-strong shadow-[0_18px_38px_rgba(15,23,42,0.06)]">
         <div className="px-7 py-4.5">
           <div className="flex items-center justify-between gap-6">
             <div className="flex items-center gap-3.5">
@@ -166,14 +166,14 @@ function InvitationInboxRow({
     <div className="px-7 py-4.5">
       <div className="flex items-center justify-between gap-6">
         <div className="flex min-w-0 items-center gap-3.5">
-          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#ecfffd] text-[#2fd0c5]">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-accent">
             <InvitationIcon />
           </div>
           <div className="min-w-0">
             <p className="truncate text-[1.14rem] font-semibold tracking-tight text-foreground">
               Invitation to join {item.workspace.name}
             </p>
-            <p className="truncate text-[0.9rem] leading-6 text-[#95a3b9]">
+            <p className="truncate text-[0.9rem] leading-6 text-muted">
               Invited {formatInvitationDate(item.invitation.createdAt)}
             </p>
           </div>
