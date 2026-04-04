@@ -51,6 +51,10 @@ export function getWorkspaceCalendarHref(workspaceId: string): string {
   return `/workspaces/${workspaceId}/calendar`;
 }
 
+export function getInvitationInboxHref(): string {
+  return '/invitation-inbox';
+}
+
 export function getSidebarNavigationItems(
   workspaceId: string | null,
 ): SidebarNavigationItem[] {
@@ -81,8 +85,8 @@ export function getSidebarNavigationItems(
     {
       key: 'inbox',
       label: 'Inbox',
-      description: 'Cross-workspace tasks',
-      href: '/inbox',
+      description: 'Received invitations',
+      href: getInvitationInboxHref(),
       icon: <InboxIcon />,
     },
     {
@@ -103,6 +107,18 @@ export function deriveShellRouteContext(
   pathname: string,
   workspaces: AuthenticatedWorkspace[],
 ): ShellRouteContext {
+  if (pathname === '/invitation-inbox') {
+    return {
+      definition: {
+        key: 'inbox',
+        title: 'Invitation Inbox',
+        subtitle: 'Workspace invitations you have received.',
+        eyebrow: 'Received invitations',
+      },
+      currentWorkspace: workspaces[0] ?? null,
+    };
+  }
+
   if (pathname === '/inbox') {
     return {
       definition: {

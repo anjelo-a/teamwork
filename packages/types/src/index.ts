@@ -157,8 +157,17 @@ export interface WorkspaceInvitationResponse {
   invitation: WorkspaceInvitationSummary;
 }
 
+export interface UserInvitationInboxItem {
+  invitation: WorkspaceInvitationSummary;
+  workspace: WorkspaceSummary;
+}
+
 export interface WorkspaceInvitationsResponse {
   invitations: WorkspaceInvitationSummary[];
+}
+
+export interface UserInvitationsResponse {
+  invitations: UserInvitationInboxItem[];
 }
 
 export interface JwtAccessTokenPayload {

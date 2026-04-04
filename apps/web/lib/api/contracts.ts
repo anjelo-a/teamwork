@@ -5,6 +5,7 @@ import type {
   TaskListResponse,
   TaskResponse,
   UserSummary,
+  UserInvitationsResponse,
   WorkspaceInvitationSummary,
   WorkspaceInvitationResponse,
   WorkspaceInvitationsResponse,
@@ -59,6 +60,14 @@ export function parseWorkspaceInvitationsResponse(
 
   return {
     invitations: readArray(record['invitations'], parseWorkspaceInvitationSummary),
+  };
+}
+
+export function parseUserInvitationsResponse(value: unknown): UserInvitationsResponse {
+  const record = readRecord(value);
+
+  return {
+    invitations: readArray(record['invitations'], parseUserInvitationInboxItem),
   };
 }
 
@@ -167,6 +176,17 @@ function parseWorkspaceInvitationSummary(value: unknown): WorkspaceInvitationSum
     createdAt: readString(record['createdAt']),
     acceptedAt: readNullableString(record['acceptedAt']),
     revokedAt: readNullableString(record['revokedAt']),
+  };
+}
+
+function parseUserInvitationInboxItem(
+  value: unknown,
+): UserInvitationsResponse['invitations'][number] {
+  const record = readRecord(value);
+
+  return {
+    invitation: parseWorkspaceInvitationSummary(record['invitation']),
+    workspace: parseWorkspaceSummary(record['workspace']),
   };
 }
 

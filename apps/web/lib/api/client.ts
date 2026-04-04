@@ -2,6 +2,7 @@ import type {
   AuthMeResponse,
   CreateTaskInput,
   InviteWorkspaceMemberResult,
+  UserInvitationsResponse,
   TaskDeleteResponse,
   TaskListResponse,
   TaskResponse,
@@ -18,6 +19,7 @@ import type {
 import {
   parseAuthMeResponse,
   parseInviteWorkspaceMemberResult,
+  parseUserInvitationsResponse,
   parseWorkspaceInvitationResponse,
   parseWorkspaceMemberResponse,
   parseTaskListResponse,
@@ -95,6 +97,15 @@ export async function getWorkspaceInvitations(
   });
 }
 
+export async function listMyInvitationInbox(
+  accessToken: string,
+): Promise<UserInvitationsResponse> {
+  return apiRequest('/users/me/invitations', {
+    accessToken,
+    parser: parseUserInvitationsResponse,
+  });
+}
+
 export async function inviteWorkspaceMember(
   workspaceId: string,
   accessToken: string,
@@ -120,6 +131,17 @@ export async function revokeWorkspaceInvitation(
     accessToken,
     method: 'DELETE',
     parser: parseWorkspaceInvitationResponse,
+  });
+}
+
+export async function acceptWorkspaceInvitation(
+  invitationId: string,
+  accessToken: string,
+): Promise<WorkspaceMemberResponse> {
+  return apiRequest(`/workspaces/invitations/${invitationId}/accept`, {
+    accessToken,
+    method: 'POST',
+    parser: parseWorkspaceMemberResponse,
   });
 }
 
