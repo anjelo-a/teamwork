@@ -30,7 +30,7 @@ export default function WorkspaceMembersPage() {
       {membersQuery.status === 'error' ? (
         <PageStatusCard
           title="Members unavailable"
-          description="The shell could not load workspace members from the backend."
+          description="Workspace members could not be loaded right now."
           tone="danger"
         />
       ) : null}
@@ -38,7 +38,7 @@ export default function WorkspaceMembersPage() {
       {membersQuery.status === 'success' && membersQuery.data.members.length === 0 ? (
         <PageStatusCard
           title="No members found"
-          description="This workspace returned no members from the backend."
+          description="This workspace does not have any members yet."
           tone="default"
         />
       ) : null}

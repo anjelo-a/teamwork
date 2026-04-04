@@ -128,7 +128,7 @@ export default function WorkspaceCalendarPage() {
       <PageSurface
         eyebrow="Limited task controls"
         title="Members unavailable"
-        description="The calendar is loaded, but assignee-specific task controls are temporarily unavailable until workspace members can be fetched."
+        description="Due-date tasks are available, but assignee-specific controls are unavailable until workspace members can be loaded."
       />
     );
   }, [membersUnavailable]);
@@ -158,7 +158,7 @@ export default function WorkspaceCalendarPage() {
       {workspaceQuery.status === 'error' ? (
         <PageStatusCard
           title="Calendar unavailable"
-          description="The shell could not resolve this workspace for the calendar route."
+          description="This workspace calendar could not be loaded right now."
           tone="danger"
         />
       ) : null}
@@ -166,7 +166,7 @@ export default function WorkspaceCalendarPage() {
       {tasksQuery.status === 'error' ? (
         <PageStatusCard
           title="Tasks unavailable"
-          description="The calendar could not load workspace tasks from the backend."
+          description="Workspace tasks could not be loaded for this calendar."
           tone="danger"
         />
       ) : null}

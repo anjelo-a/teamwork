@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   WorkspaceMemberDetail,
   WorkspaceRole,
@@ -27,6 +27,10 @@ export function MembersPage({
   const [memberItems, setMemberItems] = useState(members);
   const [rowState, setRowState] = useState<MemberRowState>({});
   const isOwner = currentUserRole === 'owner';
+
+  useEffect(() => {
+    setMemberItems(members);
+  }, [members]);
 
   const sortedMembers = useMemo(
     () =>

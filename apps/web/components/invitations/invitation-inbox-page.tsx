@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { UserInvitationInboxItem } from '@teamwork/types';
 import { ApiError, acceptWorkspaceInvitation } from '@/lib/api/client';
 
@@ -20,6 +20,10 @@ export function InvitationInboxPage({
   const [items, setItems] = useState(invitations);
   const [rowState, setRowState] = useState<RowState>({});
   const [successWorkspaceName, setSuccessWorkspaceName] = useState<string | null>(null);
+
+  useEffect(() => {
+    setItems(invitations);
+  }, [invitations]);
 
   const handleAccept = async (item: UserInvitationInboxItem) => {
     if (!accessToken) {

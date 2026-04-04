@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   InviteWorkspaceMemberResult,
   WorkspaceInvitationSummary,
@@ -29,6 +29,10 @@ export function InvitationsPage({
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [successResult, setSuccessResult] = useState<InviteWorkspaceMemberResult | null>(null);
   const isOwner = currentUserRole === 'owner';
+
+  useEffect(() => {
+    setItems(invitations);
+  }, [invitations]);
 
   const sortedItems = useMemo(
     () =>
@@ -105,7 +109,7 @@ export function InvitationsPage({
             Invitation created for {successResult.invitation.email}
           </p>
           <p className="mt-2 text-sm leading-6 text-[#6d7e95]">
-            Share this real invitation link:
+            Share this invitation link:
           </p>
           <a
             href={successResult.inviteUrl}

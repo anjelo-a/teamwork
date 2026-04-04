@@ -36,7 +36,7 @@ export default function WorkspaceInvitationsPage() {
       {isForbidden ? (
         <PageStatusCard
           title="Owner access required"
-          description="The backend is enforcing invitation access for workspace owners. This shell preserves that response instead of masking it."
+          description="Only workspace owners can view and manage invitations."
           tone="warning"
         />
       ) : null}
@@ -44,21 +44,12 @@ export default function WorkspaceInvitationsPage() {
       {invitationsQuery.status === 'error' && !isForbidden ? (
         <PageStatusCard
           title="Invitations unavailable"
-          description="The shell could not load invitations for this workspace."
+          description="Workspace invitations could not be loaded right now."
           tone="danger"
         />
       ) : null}
 
-      {invitationsQuery.status === 'success' && invitationsQuery.data.invitations.length === 0 ? (
-        <InvitationsPage
-          workspaceId={workspaceId}
-          invitations={invitationsQuery.data.invitations}
-          currentUserRole={currentWorkspace?.membership.role ?? null}
-          accessToken={accessToken}
-        />
-      ) : null}
-
-      {invitationsQuery.status === 'success' && invitationsQuery.data.invitations.length > 0 ? (
+      {invitationsQuery.status === 'success' ? (
         <InvitationsPage
           workspaceId={workspaceId}
           invitations={invitationsQuery.data.invitations}

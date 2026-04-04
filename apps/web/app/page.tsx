@@ -73,7 +73,7 @@ export default function HomePage() {
     <main className="flex min-h-screen items-center justify-center px-6 py-10">
       <PageStatusCard
         title="Preparing TeamWork"
-        description="Routing you into the app shell now."
+        description="Taking you to the best available workspace."
         tone="default"
       />
     </main>

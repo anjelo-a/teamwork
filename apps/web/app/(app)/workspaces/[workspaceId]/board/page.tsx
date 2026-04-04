@@ -112,7 +112,7 @@ export default function WorkspaceBoardPage() {
       {workspaceQuery.status === 'error' ? (
         <PageStatusCard
           title="Workspace unavailable"
-          description="The board shell could not resolve this workspace from the backend."
+          description="This workspace could not be loaded right now."
           tone="danger"
         />
       ) : null}
@@ -120,7 +120,7 @@ export default function WorkspaceBoardPage() {
       {tasksQuery.status === 'error' ? (
         <PageStatusCard
           title="Board unavailable"
-          description="The board could not load workspace tasks from the backend."
+          description="Workspace tasks could not be loaded right now."
           tone="danger"
         />
       ) : null}
@@ -131,7 +131,7 @@ export default function WorkspaceBoardPage() {
             <PageSurface
               eyebrow="Limited filters"
               title="Members unavailable"
-              description="The board is loaded, but member-specific filters are temporarily unavailable until workspace members can be fetched."
+              description="Tasks are available, but member-specific filters are unavailable until workspace members can be loaded."
             />
           ) : null}
 

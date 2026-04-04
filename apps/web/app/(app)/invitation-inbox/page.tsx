@@ -21,7 +21,7 @@ export default function InvitationInboxRoutePage() {
       {inboxQuery.status === 'error' ? (
         <PageStatusCard
           title="Invitation inbox unavailable"
-          description="The shell could not load your received workspace invitations."
+          description="Your received workspace invitations could not be loaded right now."
           tone="danger"
         />
       ) : null}

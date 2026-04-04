@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode, type SyntheticEvent } from 'react';
 import type { InviteWorkspaceMemberResult, WorkspaceRole } from '@teamwork/types';
 import { ApiError, inviteWorkspaceMember } from '@/lib/api/client';
+import { isValidEmailAddress } from '@/lib/auth/forms';
 import { Dialog } from '@/components/ui/dialog';
 
 interface InviteMemberModalProps {
@@ -55,6 +56,11 @@ export function InviteMemberModal({
       return;
     }
 
+    if (!isValidEmailAddress(email)) {
+      setErrors({ email: 'Enter a valid email address.' });
+      return;
+    }
+
     if (!accessToken) {
       setErrors({ form: 'Your session is unavailable. Refresh the page and try again.' });
       return;
@@ -91,7 +97,7 @@ export function InviteMemberModal({
     <Dialog
       open={open}
       title="Invite Member"
-      description="Invite a new member to your workspace with a real backend invitation link."
+      description="Invite a new member to your workspace and share their invitation link."
       onClose={handleClose}
       footer={
         <>
@@ -122,8 +128,9 @@ export function InviteMemberModal({
         <FieldBlock label="Email" error={errors.email} hint="Send an invitation to this email address.">
           <input
             type="email"
-            value={values.email}
-            onChange={(event) => {
+          value={values.email}
+          autoComplete="email"
+          onChange={(event) => {
               const nextEmail = event.target.value;
               setValues((current) => ({
                 ...current,

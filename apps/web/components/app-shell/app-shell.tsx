@@ -29,7 +29,7 @@ export function AppShell({ children }: AppShellProps): ReactNode {
       <main className="flex min-h-screen items-center justify-center px-6 py-10">
         <PageStatusCard
           title="Session unavailable"
-          description={errorMessage ?? 'The app shell could not validate your current session.'}
+          description={errorMessage ?? 'Your current session could not be validated.'}
           tone="danger"
           actionLabel="Retry session"
           onAction={() => {
@@ -45,7 +45,7 @@ export function AppShell({ children }: AppShellProps): ReactNode {
       <main className="flex min-h-screen items-center justify-center px-6 py-10">
         <PageStatusCard
           title="Loading TeamWork"
-          description="Restoring your authenticated shell and workspace context."
+          description="Restoring your workspace access and account context."
           tone="default"
         />
       </main>
@@ -57,7 +57,7 @@ export function AppShell({ children }: AppShellProps): ReactNode {
       <main className="flex min-h-screen items-center justify-center px-6 py-10">
         <PageStatusCard
           title="No workspaces available"
-          description="The shell is active, but there is no workspace to render in the sidebar yet."
+          description="Your account is active, but there is no workspace available yet."
           tone="default"
         />
       </main>

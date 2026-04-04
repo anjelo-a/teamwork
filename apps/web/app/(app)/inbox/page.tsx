@@ -1,26 +1,39 @@
 'use client';
 
+import { useState } from 'react';
+import type { TaskSummary } from '@teamwork/types';
+import { TaskDetailsModal } from '@/components/board/task-details-modal';
+import { TaskInboxPage, TaskInboxPageSkeleton } from '@/components/inbox/task-inbox-page';
 import { PageContainer } from '@/components/app-shell/page-container';
-import { PageStatusCard, PageSurface } from '@/components/app-shell/page-state';
+import { PageStatusCard } from '@/components/app-shell/page-state';
+import { useAuthSession } from '@/lib/auth/auth-session-provider';
 import { useAuthenticatedApiResource } from '@/lib/hooks/use-authenticated-api-resource';
-import { listInboxTasks } from '@/lib/api/client';
+import { getWorkspaceMembers, listInboxTasks } from '@/lib/api/client';
 
 export default function InboxPage() {
+  const { auth } = useAuthSession();
+  const [selectedTask, setSelectedTask] = useState<TaskSummary | null>(null);
+  const [taskRefreshNonce, setTaskRefreshNonce] = useState(0);
   const inboxQuery = useAuthenticatedApiResource({
-    key: 'tasks:inbox',
+    key: `tasks:inbox:${String(taskRefreshNonce)}`,
     load: listInboxTasks,
+  });
+  const selectedWorkspaceMembersQuery = useAuthenticatedApiResource({
+    key: `workspace:${selectedTask?.workspaceId ?? 'none'}:members:inbox`,
+    load: (accessToken) =>
+      selectedTask
+        ? getWorkspaceMembers(selectedTask.workspaceId, accessToken)
+        : Promise.resolve({ members: [] }),
   });
 
   return (
     <PageContainer>
-      {inboxQuery.status === 'loading' ? (
-        <PageSurface variant="skeleton" />
-      ) : null}
+      {inboxQuery.status === 'loading' ? <TaskInboxPageSkeleton /> : null}
 
       {inboxQuery.status === 'error' ? (
         <PageStatusCard
           title="Inbox unavailable"
-          description="The shell could not load your task inbox from the API."
+          description="Your task inbox could not be loaded right now."
           tone="danger"
         />
       ) : null}
@@ -28,20 +41,40 @@ export default function InboxPage() {
       {inboxQuery.status === 'success' && inboxQuery.data.tasks.length === 0 ? (
         <PageStatusCard
           title="No inbox tasks"
-          description="Your authenticated inbox is connected and ready. New task content can layer onto this route next."
+          description="There are no tasks available across your accessible workspaces."
           tone="default"
         />
       ) : null}
 
       {inboxQuery.status === 'success' && inboxQuery.data.tasks.length > 0 ? (
-        <PageSurface
-          eyebrow="Connected"
-          title={`${String(inboxQuery.data.tasks.length)} task${
-            inboxQuery.data.tasks.length === 1 ? '' : 's'
-          } available`}
-          description="Real inbox data is loading through the shared API client. Detailed task list UI can be added on top of this shell."
+        <TaskInboxPage
+          tasks={inboxQuery.data.tasks}
+          workspaces={auth.workspaces}
+          onTaskOpen={setSelectedTask}
         />
       ) : null}
+
+      <TaskDetailsModal
+        open={selectedTask !== null}
+        taskId={selectedTask?.id ?? null}
+        workspaceId={selectedTask?.workspaceId ?? ''}
+        members={
+          selectedWorkspaceMembersQuery.status === 'success'
+            ? selectedWorkspaceMembersQuery.data.members
+            : null
+        }
+        membersUnavailable={selectedWorkspaceMembersQuery.status === 'error'}
+        onClose={() => {
+          setSelectedTask(null);
+        }}
+        onTaskChanged={() => {
+          setTaskRefreshNonce((current) => current + 1);
+        }}
+        onTaskDeleted={() => {
+          setSelectedTask(null);
+          setTaskRefreshNonce((current) => current + 1);
+        }}
+      />
     </PageContainer>
   );
 }

@@ -7,6 +7,10 @@ import {
 
 const SIMPLE_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+export function isValidEmailAddress(email: string): boolean {
+  return SIMPLE_EMAIL_PATTERN.test(email);
+}
+
 export interface SignInFormValues {
   email: string;
   password: string;
@@ -33,7 +37,7 @@ export function validateSignInInput(values: SignInFormValues): {
 
   if (!email) {
     errors.email = 'Email is required.';
-  } else if (!SIMPLE_EMAIL_PATTERN.test(email)) {
+  } else if (!isValidEmailAddress(email)) {
     errors.email = 'Enter a valid email address.';
   }
 
@@ -83,7 +87,7 @@ export function validateSignUpInput(values: SignUpFormValues): {
 
   if (!email) {
     errors.email = 'Email is required.';
-  } else if (!SIMPLE_EMAIL_PATTERN.test(email)) {
+  } else if (!isValidEmailAddress(email)) {
     errors.email = 'Enter a valid email address.';
   }
 
