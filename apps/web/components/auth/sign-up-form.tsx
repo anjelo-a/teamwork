@@ -85,7 +85,7 @@ export function SignUpForm() {
   };
 
   return (
-    <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+    <form className="flex flex-col gap-4.5" onSubmit={handleSubmit}>
       <AuthField label="Name" error={errors.name}>
         <input
           value={values.name}
@@ -137,7 +137,7 @@ export function SignUpForm() {
         />
       </AuthField>
 
-      <AppButton type="submit" disabled={isSubmitting} className="mt-1 text-base">
+      <AppButton type="submit" disabled={isSubmitting} className="mt-1 min-h-10 text-[0.98rem]">
         {isSubmitting ? 'Creating account...' : 'Create account'}
       </AppButton>
 
