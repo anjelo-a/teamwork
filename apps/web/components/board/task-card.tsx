@@ -2,11 +2,18 @@ import type { TaskSummary } from '@teamwork/types';
 
 interface BoardTaskCardProps {
   task: TaskSummary;
+  onOpen: (taskId: string) => void;
 }
 
-export function BoardTaskCard({ task }: BoardTaskCardProps) {
+export function BoardTaskCard({ task, onOpen }: BoardTaskCardProps) {
   return (
-    <article className="rounded-[1.05rem] border border-[#dde4ef] bg-white px-4 py-4 shadow-[0_10px_24px_rgba(15,23,20,0.04)]">
+    <button
+      type="button"
+      onClick={() => {
+        onOpen(task.id);
+      }}
+      className="rounded-[1.05rem] border border-[#dde4ef] bg-white px-4 py-4 text-left shadow-[0_10px_24px_rgba(15,23,20,0.04)] transition-transform transition-colors hover:-translate-y-0.5 hover:border-line-strong"
+    >
       <h4 className="text-[1.02rem] font-semibold leading-7 tracking-tight text-foreground">
         {task.title}
       </h4>
@@ -21,7 +28,7 @@ export function BoardTaskCard({ task }: BoardTaskCardProps) {
         <TaskMeta label={task.assigneeUser?.displayName ?? 'Unassigned'} />
         <TaskMeta label={`By ${task.createdByUser.displayName}`} />
       </div>
-    </article>
+    </button>
   );
 }
 

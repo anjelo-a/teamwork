@@ -23,6 +23,7 @@ interface BoardPageProps {
   membersUnavailable: boolean;
   onStatusChange: (value: BoardStatusFilter) => void;
   onAssigneeChange: (value: BoardAssigneeFilter) => void;
+  onTaskOpen: (taskId: string) => void;
 }
 
 export function BoardPage({
@@ -36,6 +37,7 @@ export function BoardPage({
   membersUnavailable,
   onStatusChange,
   onAssigneeChange,
+  onTaskOpen,
 }: BoardPageProps) {
   const visibleTasks = useMemo(
     () =>
@@ -71,6 +73,7 @@ export function BoardPage({
                 key={column.status}
                 column={column}
                 hasAnyVisibleTasks={hasAnyVisibleTasks}
+                onTaskOpen={onTaskOpen}
               />
             ))}
           </div>

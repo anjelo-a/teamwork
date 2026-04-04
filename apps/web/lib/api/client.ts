@@ -1,9 +1,13 @@
 import type {
   AuthMeResponse,
   CreateTaskInput,
+  TaskDeleteResponse,
   TaskListResponse,
   TaskResponse,
   TaskAssignmentFilter,
+  UpdateTaskAssigneeInput,
+  UpdateTaskInput,
+  UpdateTaskStatusInput,
   WorkspaceInvitationsResponse,
   WorkspaceMembersResponse,
   WorkspaceResponse,
@@ -20,7 +24,7 @@ import {
 interface ApiRequestOptions<T> {
   accessToken: string;
   parser: (value: unknown) => T;
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: string;
 }
 
@@ -115,6 +119,71 @@ export async function createWorkspaceTask(
   });
 }
 
+export async function getWorkspaceTaskDetails(
+  workspaceId: string,
+  taskId: string,
+  accessToken: string,
+): Promise<TaskResponse> {
+  return apiRequest(`/workspaces/${workspaceId}/tasks/${taskId}`, {
+    accessToken,
+    parser: parseTaskResponse,
+  });
+}
+
+export async function updateWorkspaceTask(
+  workspaceId: string,
+  taskId: string,
+  accessToken: string,
+  input: UpdateTaskInput,
+): Promise<TaskResponse> {
+  return apiRequest(`/workspaces/${workspaceId}/tasks/${taskId}`, {
+    accessToken,
+    method: 'PATCH',
+    body: JSON.stringify(input),
+    parser: parseTaskResponse,
+  });
+}
+
+export async function updateWorkspaceTaskStatus(
+  workspaceId: string,
+  taskId: string,
+  accessToken: string,
+  input: UpdateTaskStatusInput,
+): Promise<TaskResponse> {
+  return apiRequest(`/workspaces/${workspaceId}/tasks/${taskId}/status`, {
+    accessToken,
+    method: 'PATCH',
+    body: JSON.stringify(input),
+    parser: parseTaskResponse,
+  });
+}
+
+export async function updateWorkspaceTaskAssignee(
+  workspaceId: string,
+  taskId: string,
+  accessToken: string,
+  input: UpdateTaskAssigneeInput,
+): Promise<TaskResponse> {
+  return apiRequest(`/workspaces/${workspaceId}/tasks/${taskId}/assignee`, {
+    accessToken,
+    method: 'PATCH',
+    body: JSON.stringify(input),
+    parser: parseTaskResponse,
+  });
+}
+
+export async function deleteWorkspaceTask(
+  workspaceId: string,
+  taskId: string,
+  accessToken: string,
+): Promise<TaskDeleteResponse> {
+  return apiRequest(`/workspaces/${workspaceId}/tasks/${taskId}`, {
+    accessToken,
+    method: 'DELETE',
+    parser: parseTaskDeleteResponse,
+  });
+}
+
 async function apiRequest<T>(path: string, options: ApiRequestOptions<T>): Promise<T> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: options.method ?? 'GET',
@@ -133,6 +202,14 @@ async function apiRequest<T>(path: string, options: ApiRequestOptions<T>): Promi
 
   const data: unknown = await response.json();
   return options.parser(data);
+}
+
+function parseTaskDeleteResponse(value: unknown): TaskDeleteResponse {
+  if (isRecord(value) && value['success'] === true) {
+    return { success: true };
+  }
+
+  throw new Error('Expected task delete response.');
 }
 
 async function readErrorMessage(response: Response): Promise<string> {

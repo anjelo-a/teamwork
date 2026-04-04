@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { CreateTaskModal } from '@/components/board/create-task-modal';
 import { BoardLoadingState } from '@/components/board/board-loading';
 import { BoardPage } from '@/components/board/board-page';
+import { TaskDetailsModal } from '@/components/board/task-details-modal';
 import { PageStatusCard, PageSurface } from '@/components/app-shell/page-state';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
 import {
@@ -33,6 +34,7 @@ export default function WorkspaceBoardPage() {
   const [statusFilter, setStatusFilter] = useState(DEFAULT_BOARD_STATUS_FILTER);
   const [assigneeFilter, setAssigneeFilter] = useState(DEFAULT_BOARD_ASSIGNEE_FILTER);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [taskRefreshNonce, setTaskRefreshNonce] = useState(0);
   const { setActionOverride } = useAppShellAction();
 
@@ -75,6 +77,14 @@ export default function WorkspaceBoardPage() {
 
   const closeCreateTaskModal = useCallback(() => {
     setIsCreateTaskOpen(false);
+  }, []);
+
+  const openTaskDetailsModal = useCallback((taskId: string) => {
+    setSelectedTaskId(taskId);
+  }, []);
+
+  const closeTaskDetailsModal = useCallback(() => {
+    setSelectedTaskId(null);
   }, []);
 
   useEffect(() => {
@@ -136,6 +146,7 @@ export default function WorkspaceBoardPage() {
             membersUnavailable={membersQuery.status === 'error'}
             onStatusChange={setStatusFilter}
             onAssigneeChange={setAssigneeFilter}
+            onTaskOpen={openTaskDetailsModal}
           />
         </div>
       ) : null}
@@ -147,6 +158,22 @@ export default function WorkspaceBoardPage() {
         membersUnavailable={membersQuery.status === 'error'}
         onClose={closeCreateTaskModal}
         onCreated={() => {
+          setTaskRefreshNonce((current) => current + 1);
+        }}
+      />
+
+      <TaskDetailsModal
+        open={selectedTaskId !== null}
+        taskId={selectedTaskId}
+        workspaceId={workspaceId}
+        members={membersQuery.status === 'success' ? membersQuery.data.members : null}
+        membersUnavailable={membersQuery.status === 'error'}
+        onClose={closeTaskDetailsModal}
+        onTaskChanged={() => {
+          setTaskRefreshNonce((current) => current + 1);
+        }}
+        onTaskDeleted={() => {
+          setSelectedTaskId(null);
           setTaskRefreshNonce((current) => current + 1);
         }}
       />

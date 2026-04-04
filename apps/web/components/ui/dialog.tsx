@@ -14,6 +14,10 @@ interface DialogProps {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  headerActions?: ReactNode;
+  hideDefaultCloseButton?: boolean;
+  panelClassName?: string;
+  bodyClassName?: string;
 }
 
 export function Dialog({
@@ -23,6 +27,10 @@ export function Dialog({
   onClose,
   children,
   footer,
+  headerActions,
+  hideDefaultCloseButton = false,
+  panelClassName,
+  bodyClassName,
 }: DialogProps) {
   const titleId = useId();
   const descriptionId = useId();
@@ -69,7 +77,7 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className="w-full max-w-[680px] rounded-[1.75rem] border border-line bg-surface-strong shadow-[0_28px_80px_rgba(15,23,20,0.18)]"
+        className={`w-full max-w-[680px] rounded-[1.75rem] border border-line bg-surface-strong shadow-[0_28px_80px_rgba(15,23,20,0.18)] ${panelClassName ?? ''}`}
       >
         <div className="flex items-start justify-between gap-6 border-b border-line px-7 py-6">
           <div className="min-w-0">
@@ -82,17 +90,22 @@ export function Dialog({
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface-muted text-muted transition-colors hover:border-line-strong hover:text-foreground"
-            aria-label="Close dialog"
-          >
-            <CloseIcon />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {headerActions}
+            {hideDefaultCloseButton ? null : (
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface-muted text-muted transition-colors hover:border-line-strong hover:text-foreground"
+                aria-label="Close dialog"
+              >
+                <CloseIcon />
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="px-7 py-6">{children}</div>
+        <div className={bodyClassName ?? 'px-7 py-6'}>{children}</div>
 
         {footer ? (
           <div className="flex items-center justify-end gap-3 border-t border-line px-7 py-5">

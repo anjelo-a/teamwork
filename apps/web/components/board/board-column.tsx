@@ -4,9 +4,10 @@ import { BoardTaskCard } from '@/components/board/task-card';
 interface BoardColumnProps {
   column: GroupedBoardColumn;
   hasAnyVisibleTasks: boolean;
+  onTaskOpen: (taskId: string) => void;
 }
 
-export function BoardColumn({ column, hasAnyVisibleTasks }: BoardColumnProps) {
+export function BoardColumn({ column, hasAnyVisibleTasks, onTaskOpen }: BoardColumnProps) {
   return (
     <section className="flex min-w-[280px] flex-1 flex-col">
       <div className="flex items-center gap-3 px-1 pb-4">
@@ -20,7 +21,7 @@ export function BoardColumn({ column, hasAnyVisibleTasks }: BoardColumnProps) {
 
       <div className="flex min-h-[420px] flex-col gap-4 rounded-[1.4rem] border border-line/70 bg-white/40 p-3">
         {column.tasks.map((task) => (
-          <BoardTaskCard key={task.id} task={task} />
+          <BoardTaskCard key={task.id} task={task} onOpen={onTaskOpen} />
         ))}
 
         {column.tasks.length === 0 ? (

@@ -87,6 +87,20 @@ export interface CreateTaskInput {
   dueDate?: string | null;
 }
 
+export interface UpdateTaskInput {
+  title?: string;
+  description?: string | null;
+  dueDate?: string | null;
+}
+
+export interface UpdateTaskStatusInput {
+  status: TaskStatus;
+}
+
+export interface UpdateTaskAssigneeInput {
+  assigneeUserId: ID | null;
+}
+
 export interface TaskResponse {
   task: TaskDetails;
 }
