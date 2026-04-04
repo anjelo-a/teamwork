@@ -7,6 +7,7 @@ import type {
   WorkspaceInvitationSummary,
   WorkspaceInvitationsResponse,
   WorkspaceMemberDetail,
+  WorkspaceMemberResponse,
   WorkspaceMembersResponse,
   WorkspaceMembershipSummary,
   WorkspaceResponse,
@@ -38,6 +39,14 @@ export function parseWorkspaceMembersResponse(value: unknown): WorkspaceMembersR
 
   return {
     members: readArray(record['members'], parseWorkspaceMemberDetail),
+  };
+}
+
+export function parseWorkspaceMemberResponse(value: unknown): WorkspaceMemberResponse {
+  const record = readRecord(value);
+
+  return {
+    membership: parseWorkspaceMemberDetail(record['membership']),
   };
 }
 

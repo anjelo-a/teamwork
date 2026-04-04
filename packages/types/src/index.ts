@@ -149,6 +149,10 @@ export interface WorkspaceMembersResponse {
   members: WorkspaceMemberDetail[];
 }
 
+export interface WorkspaceMemberResponse {
+  membership: WorkspaceMemberDetail;
+}
+
 export interface WorkspaceInvitationsResponse {
   invitations: WorkspaceInvitationSummary[];
 }

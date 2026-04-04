@@ -125,8 +125,8 @@ export function deriveShellRouteContext(
       definition: {
         key: 'members',
         title: 'Members',
-        subtitle: `${workspaceName} membership and role surfaces can plug into this shell next.`,
-        eyebrow: 'Workspace access',
+        subtitle: `Manage ${workspaceName} workspace members and their roles.`,
+        eyebrow: 'Workspace members',
       },
       currentWorkspace,
     };

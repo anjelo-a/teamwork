@@ -8,12 +8,14 @@ import type {
   UpdateTaskAssigneeInput,
   UpdateTaskInput,
   UpdateTaskStatusInput,
+  WorkspaceMemberResponse,
   WorkspaceInvitationsResponse,
   WorkspaceMembersResponse,
   WorkspaceResponse,
 } from '@teamwork/types';
 import {
   parseAuthMeResponse,
+  parseWorkspaceMemberResponse,
   parseTaskListResponse,
   parseTaskResponse,
   parseWorkspaceInvitationsResponse,
@@ -62,6 +64,20 @@ export async function getWorkspaceMembers(
   return apiRequest(`/workspaces/${workspaceId}/members`, {
     accessToken,
     parser: parseWorkspaceMembersResponse,
+  });
+}
+
+export async function updateWorkspaceMemberRole(
+  workspaceId: string,
+  userId: string,
+  accessToken: string,
+  role: 'owner' | 'member',
+): Promise<WorkspaceMemberResponse> {
+  return apiRequest(`/workspaces/${workspaceId}/members/${userId}`, {
+    accessToken,
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
+    parser: parseWorkspaceMemberResponse,
   });
 }
 
