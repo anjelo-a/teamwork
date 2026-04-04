@@ -23,16 +23,16 @@ export function AuthLayout({
 }: AuthLayoutProps) {
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
-      <div className="w-full max-w-[460px]">
+      <div className="w-full max-w-[440px]">
         <div className="text-center">
-          <h1 className="text-[3rem] font-semibold tracking-tight text-foreground">{title}</h1>
-          <p className="mt-3 text-lg text-muted">{subtitle}</p>
+          <h1 className="text-[2.7rem] font-semibold tracking-tight text-foreground">{title}</h1>
+          <p className="mt-2 text-[1rem] text-muted">{subtitle}</p>
         </div>
 
-        <ContentPanel className="shell-panel mt-9 px-7 py-8">
+        <ContentPanel className="shell-panel mt-7 px-6 py-7">
           {children}
 
-          <p className="mt-6 text-center text-sm text-muted">
+          <p className="mt-5 text-center text-[0.92rem] text-muted">
             {helperText}{' '}
             <Link href={helperHref} className="font-semibold text-foreground transition-colors hover:text-accent">
               {helperLabel}

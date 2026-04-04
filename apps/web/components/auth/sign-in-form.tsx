@@ -83,7 +83,7 @@ export function SignInForm() {
   };
 
   return (
-    <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+    <form className="flex flex-col gap-4.5" onSubmit={handleSubmit}>
       <AuthField label="Email" error={errors.email}>
         <input
           type="email"
@@ -110,7 +110,7 @@ export function SignInForm() {
         />
       </AuthField>
 
-      <AppButton type="submit" disabled={isSubmitting} className="mt-1 text-base">
+      <AppButton type="submit" disabled={isSubmitting} className="mt-1 min-h-10 text-[0.98rem]">
         {isSubmitting ? 'Signing in...' : 'Sign in'}
       </AppButton>
 
