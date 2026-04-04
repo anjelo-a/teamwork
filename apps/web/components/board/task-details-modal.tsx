@@ -339,7 +339,7 @@ export function TaskDetailsModal({
       onClose={handleClose}
       headerActions={headerActions}
       hideDefaultCloseButton
-      panelClassName="max-w-[760px]"
+      panelClassName="max-w-[700px]"
       bodyClassName="px-0 py-0"
       footer={
         isEditing ? (
@@ -382,9 +382,9 @@ export function TaskDetailsModal({
 
       {task ? (
         <form id="task-details-edit-form" onSubmit={handleEditFormSubmit}>
-          <div className="border-b border-line px-7 py-6">
+          <div className="border-b border-line px-6 py-5">
             {isEditing ? (
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 <Field label="Title" error={editorErrors.title}>
                   <input
                     value={editorValues.title}
@@ -410,9 +410,9 @@ export function TaskDetailsModal({
                       }));
                       clearEditorError('description', setEditorErrors);
                     }}
-                    rows={5}
+                    rows={4}
                     maxLength={5000}
-                    className={`${getTextControlClassName(Boolean(editorErrors.description), 'strong')} resize-none`}
+                    className={`${getTextControlClassName(Boolean(editorErrors.description), 'strong')} min-h-[116px] resize-none`}
                   />
                 </Field>
 
@@ -432,24 +432,24 @@ export function TaskDetailsModal({
                 </Field>
               </div>
             ) : (
-              <div className="space-y-3">
-                <h3 className="text-[2rem] font-semibold tracking-tight text-foreground">
+              <div className="space-y-2.5">
+                <h3 className="text-[1.65rem] font-semibold tracking-tight text-foreground">
                   {task.title}
                 </h3>
                 {task.description ? (
-                  <p className="max-w-3xl text-[1rem] leading-7 text-muted">{task.description}</p>
+                  <p className="max-w-3xl text-[0.96rem] leading-6 text-muted">{task.description}</p>
                 ) : (
-                  <p className="text-sm leading-6 text-muted">No description added yet.</p>
+                  <p className="text-[0.9rem] leading-6 text-muted">No description added yet.</p>
                 )}
-                <p className="text-sm font-medium text-muted">
+                <p className="text-[0.88rem] font-medium text-muted">
                   Due date: {task.dueDate ?? 'No due date'}
                 </p>
               </div>
             )}
           </div>
 
-          <div className="space-y-6 px-7 py-6">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-5 px-6 py-5">
+            <div className="grid grid-cols-2 gap-3">
               <Field
                 label="Status"
                 hint={isUpdatingStatus ? 'Saving status...' : undefined}
@@ -502,19 +502,19 @@ export function TaskDetailsModal({
               </Field>
             </div>
 
-            <div className="border-t border-line pt-5 text-[1rem] leading-8 text-muted">
+            <div className="border-t border-line pt-4 text-[0.9rem] leading-7 text-muted">
               <p>Created by {task.createdByUser.displayName}</p>
               <p>Created {formatTaskTimestamp(task.createdAt)}</p>
               <p>Last updated {formatTaskTimestamp(task.updatedAt)}</p>
             </div>
 
             {isDeleteConfirming ? (
-              <div className="rounded-[1.2rem] border border-danger/20 bg-danger-soft px-5 py-4">
-                <p className="text-sm font-semibold text-danger">Delete this task?</p>
-                <p className="mt-1 text-sm leading-6 text-danger">
+              <div className="rounded-[1rem] border border-danger/20 bg-danger-soft px-4 py-3.5">
+                <p className="text-[0.9rem] font-semibold text-danger">Delete this task?</p>
+                <p className="mt-1 text-[0.88rem] leading-6 text-danger">
                   This permanently removes the task from the board.
                 </p>
-                <div className="mt-4 flex items-center gap-3">
+                <div className="mt-3.5 flex items-center gap-2.5">
                   <AppButton
                     type="button"
                     onClick={() => {
@@ -553,27 +553,27 @@ export function TaskDetailsModal({
 
 function TaskDetailsLoadingState() {
   return (
-    <div className="space-y-6 px-7 py-6">
-      <div className="space-y-3 border-b border-line pb-6">
-        <div className="h-10 w-72 rounded-2xl bg-surface-muted" />
-        <div className="h-6 w-full rounded-2xl bg-surface-muted" />
-        <div className="h-6 w-52 rounded-2xl bg-surface-muted" />
+    <div className="space-y-5 px-6 py-5">
+      <div className="space-y-2.5 border-b border-line pb-5">
+        <div className="h-9 w-64 rounded-xl bg-surface-muted" />
+        <div className="h-5 w-full rounded-xl bg-surface-muted" />
+        <div className="h-5 w-44 rounded-xl bg-surface-muted" />
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="h-24 rounded-[1rem] bg-surface-muted" />
-        <div className="h-24 rounded-[1rem] bg-surface-muted" />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="h-22 rounded-[0.9rem] bg-surface-muted" />
+        <div className="h-22 rounded-[0.9rem] bg-surface-muted" />
       </div>
-      <div className="h-28 rounded-[1rem] bg-surface-muted" />
+      <div className="h-24 rounded-[0.9rem] bg-surface-muted" />
     </div>
   );
 }
 
 function TaskDetailsErrorState({ description }: { description: string }) {
   return (
-    <div className="px-7 py-8">
-      <div className="rounded-[1.2rem] border border-danger/20 bg-danger-soft px-5 py-4">
-        <p className="text-base font-semibold text-danger">Task unavailable</p>
-        <p className="mt-1 text-sm leading-6 text-danger">{description}</p>
+    <div className="px-6 py-6">
+      <div className="rounded-[1rem] border border-danger/20 bg-danger-soft px-4 py-3.5">
+        <p className="text-[0.98rem] font-semibold text-danger">Task unavailable</p>
+        <p className="mt-1 text-[0.9rem] leading-6 text-danger">{description}</p>
       </div>
     </div>
   );

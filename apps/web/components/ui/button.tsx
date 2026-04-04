@@ -47,7 +47,7 @@ export function getButtonClassName(
 }
 
 export function getIconButtonClassName(): string {
-  return 'inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-muted transition-colors hover:border-line hover:bg-surface-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60';
+  return 'inline-flex h-9 w-9 items-center justify-center rounded-[0.8rem] border border-transparent bg-transparent text-muted transition-colors hover:border-line hover:bg-surface-muted/80 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60';
 }
 
 function joinClassNames(...values: Array<string | undefined>): string {
