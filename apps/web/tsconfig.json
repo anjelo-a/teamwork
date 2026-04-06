@@ -12,7 +12,6 @@
         "name": "next"
       }
     ],
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
       "@teamwork/types": ["../../packages/types/src/index.ts"],
