@@ -38,8 +38,8 @@ interface TaskDetailsModalProps {
   members: WorkspaceMemberDetail[] | null;
   membersUnavailable: boolean;
   onClose: () => void;
-  onTaskChanged: () => void;
-  onTaskDeleted: () => void;
+  onTaskChanged: (task: TaskDetails) => void;
+  onTaskDeleted: (taskId: string) => void;
 }
 
 type DetailLoadState =
@@ -180,7 +180,7 @@ export function TaskDetailsModal({
     setEditorValues(createTaskEditorValues(nextTask));
     setEditorErrors({});
     setActionErrorMessage(null);
-    onTaskChanged();
+    onTaskChanged(nextTask);
   };
 
   const handleStatusChange = async (nextStatus: TaskStatus) => {
@@ -282,7 +282,7 @@ export function TaskDetailsModal({
 
     try {
       await deleteWorkspaceTask(workspaceId, task.id, accessToken);
-      onTaskDeleted();
+      onTaskDeleted(task.id);
       onClose();
     } catch (error) {
       setActionErrorMessage(readActionError(error, 'Task could not be deleted.'));

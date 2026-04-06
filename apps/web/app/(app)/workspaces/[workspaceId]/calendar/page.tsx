@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
+import type { TaskSummary } from '@teamwork/types';
 import { CreateTaskModal } from '@/components/board/create-task-modal';
 import { TaskDetailsModal } from '@/components/board/task-details-modal';
 import { CalendarLoadingState } from '@/components/calendar/calendar-loading';
@@ -23,6 +24,7 @@ import {
 import { useAuthenticatedApiResource } from '@/lib/hooks/use-authenticated-api-resource';
 import { useAppShellAction } from '@/lib/app-shell-action-context';
 import { readWorkspaceIdFromParams } from '@/lib/route-params';
+import { removeTaskSummary, upsertTaskSummary } from '@/lib/task-list';
 
 export default function WorkspaceCalendarPage() {
   const params = useParams<{ workspaceId: string }>();
@@ -34,11 +36,18 @@ export default function WorkspaceCalendarPage() {
   const { setActionOverride } = useAppShellAction();
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [taskRefreshNonce, setTaskRefreshNonce] = useState(0);
+  const [taskItemsState, setTaskItemsState] = useState<{
+    key: string | null;
+    tasks: TaskSummary[];
+  }>({
+    key: null,
+    tasks: [],
+  });
 
   const currentView = readCalendarView(searchParams.get('view'));
   const currentFilter = readCalendarAudienceFilter(searchParams.get('filter'));
   const selectedDate = readCalendarDate(searchParams.get('date'));
+  const taskQueryKey = `workspace:${workspaceId}:tasks:calendar`;
 
   const workspaceQuery = useAuthenticatedApiResource({
     key: `workspace:${workspaceId}:calendar`,
@@ -49,9 +58,15 @@ export default function WorkspaceCalendarPage() {
     load: (accessToken) => getWorkspaceMembers(workspaceId, accessToken),
   });
   const tasksQuery = useAuthenticatedApiResource({
-    key: `workspace:${workspaceId}:tasks:calendar:${String(taskRefreshNonce)}`,
+    key: taskQueryKey,
     load: (accessToken) => listWorkspaceTasks(workspaceId, accessToken),
   });
+  const taskItems =
+    taskItemsState.key === taskQueryKey
+      ? taskItemsState.tasks
+      : tasksQuery.status === 'success'
+        ? tasksQuery.data.tasks
+        : [];
 
   const applyCalendarParams = useCallback(
     (nextState: Partial<{ view: typeof currentView; filter: typeof currentFilter; date: string }>) => {
@@ -177,7 +192,7 @@ export default function WorkspaceCalendarPage() {
 
           <CalendarPage
             workspace={workspaceQuery.data.workspace}
-            tasks={tasksQuery.data.tasks}
+            tasks={taskItems}
             currentUserId={auth.user.id}
             currentView={currentView}
             currentFilter={currentFilter}
@@ -203,8 +218,11 @@ export default function WorkspaceCalendarPage() {
         members={membersQuery.status === 'success' ? membersQuery.data.members : null}
         membersUnavailable={membersUnavailable}
         onClose={handleCloseCreateTaskModal}
-        onCreated={() => {
-          setTaskRefreshNonce((current) => current + 1);
+        onCreated={(task) => {
+          setTaskItemsState((current) => ({
+            key: taskQueryKey,
+            tasks: upsertTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, task),
+          }));
         }}
       />
 
@@ -215,12 +233,18 @@ export default function WorkspaceCalendarPage() {
         members={membersQuery.status === 'success' ? membersQuery.data.members : null}
         membersUnavailable={membersUnavailable}
         onClose={handleCloseTaskDetailsModal}
-        onTaskChanged={() => {
-          setTaskRefreshNonce((current) => current + 1);
+        onTaskChanged={(task) => {
+          setTaskItemsState((current) => ({
+            key: taskQueryKey,
+            tasks: upsertTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, task),
+          }));
         }}
-        onTaskDeleted={() => {
+        onTaskDeleted={(taskId) => {
           setSelectedTaskId(null);
-          setTaskRefreshNonce((current) => current + 1);
+          setTaskItemsState((current) => ({
+            key: taskQueryKey,
+            tasks: removeTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, taskId),
+          }));
         }}
       />
     </div>

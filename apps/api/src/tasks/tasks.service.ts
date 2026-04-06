@@ -20,6 +20,8 @@ const userSummarySelect = {
   updatedAt: true,
 } satisfies Prisma.UserSelect;
 
+const MAX_TASK_LIST_RESULTS = 200;
+
 const taskDetailsSelect = {
   id: true,
   workspaceId: true,
@@ -153,6 +155,7 @@ export class TasksService {
       where: this.buildTaskListWhere(input),
       select: taskDetailsSelect,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: MAX_TASK_LIST_RESULTS,
     });
 
     return tasks.map((task) => this.toSummary(task));

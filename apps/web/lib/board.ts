@@ -130,6 +130,26 @@ export function getBackendAssignmentFilter(
   return undefined;
 }
 
+export function matchesTaskAssignmentFilter(
+  task: TaskSummary,
+  assignmentFilter: TaskAssignmentFilter | undefined,
+  currentUserId: string,
+): boolean {
+  if (!assignmentFilter || assignmentFilter === 'everyone') {
+    return true;
+  }
+
+  if (assignmentFilter === 'me') {
+    return task.assigneeUserId === currentUserId;
+  }
+
+  if (assignmentFilter === 'others') {
+    return task.assigneeUserId !== null && task.assigneeUserId !== currentUserId;
+  }
+
+  return task.assigneeUserId === null;
+}
+
 export function filterBoardTasks(
   tasks: TaskSummary[],
   filters: {

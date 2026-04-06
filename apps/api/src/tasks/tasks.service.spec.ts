@@ -186,6 +186,7 @@ describe('TasksService', () => {
       expect.objectContaining({
         where: { workspaceId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 200,
       }),
     );
     expect(result).toHaveLength(1);
@@ -209,6 +210,7 @@ describe('TasksService', () => {
           },
         },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 200,
       }),
     );
     expect(result).toHaveLength(1);
@@ -402,6 +404,7 @@ describe('TasksService', () => {
             equals: new Date('2026-04-02T00:00:00.000Z'),
           },
         },
+        take: 200,
       }),
     );
   });

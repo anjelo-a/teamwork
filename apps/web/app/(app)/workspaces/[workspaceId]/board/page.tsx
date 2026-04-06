@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
+import type { TaskSummary } from '@teamwork/types';
 import { CreateTaskModal } from '@/components/board/create-task-modal';
 import { BoardLoadingState } from '@/components/board/board-loading';
 import { BoardPage } from '@/components/board/board-page';
@@ -18,12 +19,14 @@ import {
   DEFAULT_BOARD_STATUS_FILTER,
   buildBoardAssigneeOptions,
   getBackendAssignmentFilter,
+  matchesTaskAssignmentFilter,
   resolveBoardAssigneeFilter,
   type BoardStatusFilter,
 } from '@/lib/board';
 import { useAuthenticatedApiResource } from '@/lib/hooks/use-authenticated-api-resource';
 import { useAppShellAction } from '@/lib/app-shell-action-context';
 import { readWorkspaceIdFromParams } from '@/lib/route-params';
+import { removeTaskSummary, upsertTaskSummary } from '@/lib/task-list';
 
 const STATUS_OPTIONS: BoardStatusFilter[] = ['all', 'todo', 'in_progress', 'done'];
 
@@ -35,7 +38,13 @@ export default function WorkspaceBoardPage() {
   const [assigneeFilter, setAssigneeFilter] = useState(DEFAULT_BOARD_ASSIGNEE_FILTER);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [taskRefreshNonce, setTaskRefreshNonce] = useState(0);
+  const [taskItemsState, setTaskItemsState] = useState<{
+    key: string | null;
+    tasks: TaskSummary[];
+  }>({
+    key: null,
+    tasks: [],
+  });
   const { setActionOverride } = useAppShellAction();
 
   const workspaceQuery = useAuthenticatedApiResource({
@@ -60,9 +69,10 @@ export default function WorkspaceBoardPage() {
     [assigneeFilter, assigneeOptions],
   );
   const backendAssignmentFilter = getBackendAssignmentFilter(resolvedAssigneeFilter);
+  const taskQueryKey = `workspace:${workspaceId}:tasks:board:${backendAssignmentFilter ?? 'everyone'}`;
 
   const tasksQuery = useAuthenticatedApiResource({
-    key: `workspace:${workspaceId}:tasks:board:${backendAssignmentFilter ?? 'everyone'}:${String(taskRefreshNonce)}`,
+    key: taskQueryKey,
     load: (accessToken) =>
       listWorkspaceTasks(
         workspaceId,
@@ -70,6 +80,12 @@ export default function WorkspaceBoardPage() {
         backendAssignmentFilter ? { assignment: backendAssignmentFilter } : undefined,
       ),
   });
+  const taskItems =
+    taskItemsState.key === taskQueryKey
+      ? taskItemsState.tasks
+      : tasksQuery.status === 'success'
+        ? tasksQuery.data.tasks
+        : [];
 
   const openCreateTaskModal = useCallback(() => {
     setIsCreateTaskOpen(true);
@@ -153,7 +169,7 @@ export default function WorkspaceBoardPage() {
 
           <BoardPage
             workspace={workspaceQuery.data.workspace}
-            tasks={tasksQuery.data.tasks}
+            tasks={taskItems}
             assigneeFilter={resolvedAssigneeFilter}
             assigneeOptions={assigneeOptions}
             statusFilter={statusFilter}
@@ -173,8 +189,21 @@ export default function WorkspaceBoardPage() {
         members={membersQuery.status === 'success' ? membersQuery.data.members : null}
         membersUnavailable={membersQuery.status === 'error'}
         onClose={closeCreateTaskModal}
-        onCreated={() => {
-          setTaskRefreshNonce((current) => current + 1);
+        onCreated={(task) => {
+          setTaskItemsState((current) => ({
+            key: taskQueryKey,
+            tasks: upsertTaskSummary(
+              current.key === taskQueryKey ? current.tasks : taskItems,
+              task,
+              {
+              shouldInclude: matchesTaskAssignmentFilter(
+                task,
+                backendAssignmentFilter,
+                auth.user.id,
+              ),
+              },
+            ),
+          }));
         }}
       />
 
@@ -185,12 +214,28 @@ export default function WorkspaceBoardPage() {
         members={membersQuery.status === 'success' ? membersQuery.data.members : null}
         membersUnavailable={membersQuery.status === 'error'}
         onClose={closeTaskDetailsModal}
-        onTaskChanged={() => {
-          setTaskRefreshNonce((current) => current + 1);
+        onTaskChanged={(task) => {
+          setTaskItemsState((current) => ({
+            key: taskQueryKey,
+            tasks: upsertTaskSummary(
+              current.key === taskQueryKey ? current.tasks : taskItems,
+              task,
+              {
+              shouldInclude: matchesTaskAssignmentFilter(
+                task,
+                backendAssignmentFilter,
+                auth.user.id,
+              ),
+              },
+            ),
+          }));
         }}
-        onTaskDeleted={() => {
+        onTaskDeleted={(taskId) => {
           setSelectedTaskId(null);
-          setTaskRefreshNonce((current) => current + 1);
+          setTaskItemsState((current) => ({
+            key: taskQueryKey,
+            tasks: removeTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, taskId),
+          }));
         }}
       />
     </div>

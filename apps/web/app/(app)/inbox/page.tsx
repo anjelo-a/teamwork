@@ -9,13 +9,21 @@ import { PageStatusCard } from '@/components/app-shell/page-state';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
 import { useAuthenticatedApiResource } from '@/lib/hooks/use-authenticated-api-resource';
 import { getWorkspaceMembers, listInboxTasks } from '@/lib/api/client';
+import { removeTaskSummary, upsertTaskSummary } from '@/lib/task-list';
 
 export default function InboxPage() {
   const { auth } = useAuthSession();
   const [selectedTask, setSelectedTask] = useState<TaskSummary | null>(null);
-  const [taskRefreshNonce, setTaskRefreshNonce] = useState(0);
+  const [taskItemsState, setTaskItemsState] = useState<{
+    key: string | null;
+    tasks: TaskSummary[];
+  }>({
+    key: null,
+    tasks: [],
+  });
+  const taskQueryKey = 'tasks:inbox';
   const inboxQuery = useAuthenticatedApiResource({
-    key: `tasks:inbox:${String(taskRefreshNonce)}`,
+    key: taskQueryKey,
     load: listInboxTasks,
   });
   const selectedWorkspaceMembersQuery = useAuthenticatedApiResource({
@@ -25,6 +33,12 @@ export default function InboxPage() {
         ? getWorkspaceMembers(selectedTask.workspaceId, accessToken)
         : Promise.resolve({ members: [] }),
   });
+  const taskItems =
+    taskItemsState.key === taskQueryKey
+      ? taskItemsState.tasks
+      : inboxQuery.status === 'success'
+        ? inboxQuery.data.tasks
+        : [];
 
   return (
     <PageContainer>
@@ -38,7 +52,7 @@ export default function InboxPage() {
         />
       ) : null}
 
-      {inboxQuery.status === 'success' && inboxQuery.data.tasks.length === 0 ? (
+      {inboxQuery.status === 'success' && taskItems.length === 0 ? (
         <PageStatusCard
           title="No inbox tasks"
           description="There are no tasks available across your accessible workspaces."
@@ -46,9 +60,9 @@ export default function InboxPage() {
         />
       ) : null}
 
-      {inboxQuery.status === 'success' && inboxQuery.data.tasks.length > 0 ? (
+      {inboxQuery.status === 'success' && taskItems.length > 0 ? (
         <TaskInboxPage
-          tasks={inboxQuery.data.tasks}
+          tasks={taskItems}
           workspaces={auth.workspaces}
           onTaskOpen={setSelectedTask}
         />
@@ -67,12 +81,19 @@ export default function InboxPage() {
         onClose={() => {
           setSelectedTask(null);
         }}
-        onTaskChanged={() => {
-          setTaskRefreshNonce((current) => current + 1);
+        onTaskChanged={(task) => {
+          setSelectedTask(task);
+          setTaskItemsState((current) => ({
+            key: taskQueryKey,
+            tasks: upsertTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, task),
+          }));
         }}
-        onTaskDeleted={() => {
+        onTaskDeleted={(taskId) => {
           setSelectedTask(null);
-          setTaskRefreshNonce((current) => current + 1);
+          setTaskItemsState((current) => ({
+            key: taskQueryKey,
+            tasks: removeTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, taskId),
+          }));
         }}
       />
     </PageContainer>
