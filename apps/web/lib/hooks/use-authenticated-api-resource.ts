@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
 
 interface UseAuthenticatedApiResourceOptions<T> {
@@ -45,6 +45,8 @@ export function useAuthenticatedApiResource<T>({
   load,
 }: UseAuthenticatedApiResourceOptions<T>): ResourceState<T> {
   const { status, accessToken } = useAuthSession();
+  const loadRef = useRef(load);
+  const requestTokenRef = useRef<symbol | null>(null);
   const [state, setState] = useState<StoredResourceResult<T>>({
     requestKey: null,
     status: 'loading',
@@ -52,50 +54,53 @@ export function useAuthenticatedApiResource<T>({
     error: null,
   });
 
-  const resolveResource = useCallback(
-    async (token: string): Promise<ResourceState<T>> => {
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !accessToken) {
+      requestTokenRef.current = null;
+      return;
+    }
+
+    const requestToken = Symbol(key);
+    requestTokenRef.current = requestToken;
+
+    void (async () => {
       try {
-        const data = await load(token);
-        return {
+        const data = await loadRef.current(accessToken);
+
+        if (requestTokenRef.current !== requestToken) {
+          return;
+        }
+
+        setState({
+          requestKey: key,
           status: 'success',
           data,
           error: null,
-        };
+        });
       } catch (error) {
-        return {
+        if (requestTokenRef.current !== requestToken) {
+          return;
+        }
+
+        setState({
+          requestKey: key,
           status: 'error',
           data: null,
           error: error instanceof Error ? error : new Error('Request failed.'),
-        };
+        });
       }
-    },
-    [load],
-  );
-
-  useEffect(() => {
-    let isActive = true;
-
-    if (status !== 'authenticated' || !accessToken) {
-      return () => {
-        isActive = false;
-      };
-    }
-
-    void resolveResource(accessToken).then((nextState) => {
-      if (!isActive) {
-        return;
-      }
-
-      setState({
-        requestKey: key,
-        ...nextState,
-      });
-    });
+    })();
 
     return () => {
-      isActive = false;
+      if (requestTokenRef.current === requestToken) {
+        requestTokenRef.current = null;
+      }
     };
-  }, [accessToken, key, resolveResource, status]);
+  }, [accessToken, key, status]);
 
   if (
     status !== 'authenticated' ||
