@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type {
   WorkspaceMemberDetail,
   WorkspaceRole,
@@ -26,24 +26,26 @@ export function MembersPage({
   currentUserRole,
   accessToken,
 }: MembersPageProps) {
-  const [memberItems, setMemberItems] = useState(members);
+  const [memberOverrides, setMemberOverrides] = useState<Partial<Record<string, WorkspaceMemberDetail>>>({});
   const [rowState, setRowState] = useState<MemberRowState>({});
   const isOwner = currentUserRole === 'owner';
 
-  useEffect(() => {
-    setMemberItems(members);
-  }, [members]);
+  const resolvedMembers = useMemo(
+    () =>
+      members.map((member) => memberOverrides[member.userId] ?? member),
+    [memberOverrides, members],
+  );
 
   const sortedMembers = useMemo(
     () =>
-      [...memberItems].sort((left, right) => {
+      [...resolvedMembers].sort((left, right) => {
         if (left.role !== right.role) {
           return left.role === 'owner' ? -1 : 1;
         }
 
         return left.user.displayName.localeCompare(right.user.displayName);
       }),
-    [memberItems],
+    [resolvedMembers],
   );
 
   const handleRoleChange = async (
@@ -70,11 +72,10 @@ export function MembersPage({
         nextRole,
       );
 
-      setMemberItems((current) =>
-        current.map((item) =>
-          item.userId === member.userId ? response.membership : item,
-        ),
-      );
+      setMemberOverrides((current) => ({
+        ...current,
+        [member.userId]: response.membership,
+      }));
       setRowState((current) => ({
         ...current,
         [member.userId]: {
@@ -154,7 +155,7 @@ export function MembersPageSkeleton() {
   );
 }
 
-function MemberRow({
+const MemberRow = memo(function MemberRow({
   member,
   isEditable,
   isSaving,
@@ -200,7 +201,7 @@ function MemberRow({
       ) : null}
     </div>
   );
-}
+});
 
 function MemberAvatar({ displayName }: { displayName: string }) {
   const initials = displayName

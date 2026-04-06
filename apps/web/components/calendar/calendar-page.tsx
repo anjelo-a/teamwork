@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import type { TaskSummary, WorkspaceResponse } from '@teamwork/types';
 import {
   buildMonthCells,
@@ -33,7 +34,7 @@ interface CalendarPageProps {
   onShowMore: (date: string) => void;
 }
 
-export function CalendarPage({
+export const CalendarPage = memo(function CalendarPage({
   workspace,
   tasks,
   currentUserId,
@@ -48,13 +49,28 @@ export function CalendarPage({
   onTaskOpen,
   onShowMore,
 }: CalendarPageProps) {
-  const dueDateTasks = tasks.filter((task) => task.dueDate !== null);
-  const visibleTasks = filterCalendarTasks(tasks, currentUserId, currentFilter);
-  const groupedTasks = groupTasksByDueDate(visibleTasks);
-  const heading = formatCalendarHeading(selectedDate, currentView);
-  const monthCells = buildMonthCells(selectedDate, groupedTasks);
-  const weekDays = buildWeekDays(selectedDate, groupedTasks);
-  const dayTasks = getTasksForDay(selectedDate, groupedTasks);
+  const dueDateTasks = useMemo(() => tasks.filter((task) => task.dueDate !== null), [tasks]);
+  const visibleTasks = useMemo(
+    () => filterCalendarTasks(tasks, currentUserId, currentFilter),
+    [currentFilter, currentUserId, tasks],
+  );
+  const groupedTasks = useMemo(() => groupTasksByDueDate(visibleTasks), [visibleTasks]);
+  const heading = useMemo(
+    () => formatCalendarHeading(selectedDate, currentView),
+    [currentView, selectedDate],
+  );
+  const monthCells = useMemo(
+    () => buildMonthCells(selectedDate, groupedTasks),
+    [groupedTasks, selectedDate],
+  );
+  const weekDays = useMemo(
+    () => buildWeekDays(selectedDate, groupedTasks),
+    [groupedTasks, selectedDate],
+  );
+  const dayTasks = useMemo(
+    () => getTasksForDay(selectedDate, groupedTasks),
+    [groupedTasks, selectedDate],
+  );
   const visibleRangeHasTasks =
     currentView === 'day'
       ? dayTasks.length > 0
@@ -108,7 +124,7 @@ export function CalendarPage({
       ) : null}
     </ContentPanel>
   );
-}
+});
 
 function CalendarEmptyState({ message }: { message: string }) {
   return (

@@ -131,6 +131,12 @@ export default function WorkspaceCalendarPage() {
     },
     [applyCalendarParams],
   );
+  const handlePrevious = useCallback(() => {
+    handleNavigate(-1);
+  }, [handleNavigate]);
+  const handleNext = useCallback(() => {
+    handleNavigate(1);
+  }, [handleNavigate]);
 
   const membersUnavailable = membersQuery.status === 'error';
 
@@ -199,12 +205,8 @@ export default function WorkspaceCalendarPage() {
             selectedDate={selectedDate}
             onFilterChange={handleFilterChange}
             onViewChange={handleViewChange}
-            onPrevious={() => {
-              handleNavigate(-1);
-            }}
-            onNext={() => {
-              handleNavigate(1);
-            }}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
             onToday={handleGoToToday}
             onTaskOpen={handleOpenTaskDetailsModal}
             onShowMore={handleShowMore}

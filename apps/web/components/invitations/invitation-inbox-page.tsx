@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { UserInvitationInboxItem } from '@teamwork/types';
 import { ApiError, acceptWorkspaceInvitation } from '@/lib/api/client';
 import { ContentPanel } from '@/components/app-shell/page-state';
@@ -19,13 +19,14 @@ export function InvitationInboxPage({
   accessToken,
   refreshSession,
 }: InvitationInboxPageProps) {
-  const [items, setItems] = useState(invitations);
+  const [acceptedInvitationIds, setAcceptedInvitationIds] = useState<Record<string, true>>({});
   const [rowState, setRowState] = useState<RowState>({});
   const [successWorkspaceName, setSuccessWorkspaceName] = useState<string | null>(null);
-
-  useEffect(() => {
-    setItems(invitations);
-  }, [invitations]);
+  const items = useMemo(
+    () =>
+      invitations.filter((item) => !acceptedInvitationIds[item.invitation.id]),
+    [acceptedInvitationIds, invitations],
+  );
 
   const handleAccept = async (item: UserInvitationInboxItem) => {
     if (!accessToken) {
@@ -49,9 +50,10 @@ export function InvitationInboxPage({
 
     try {
       await acceptWorkspaceInvitation(item.invitation.id, accessToken);
-      setItems((current) =>
-        current.filter((entry) => entry.invitation.id !== item.invitation.id),
-      );
+      setAcceptedInvitationIds((current) => ({
+        ...current,
+        [item.invitation.id]: true,
+      }));
       setSuccessWorkspaceName(item.workspace.name);
       void refreshSession();
       setRowState((current) => {
@@ -151,7 +153,7 @@ export function InvitationInboxPageSkeleton() {
   );
 }
 
-function InvitationInboxRow({
+const InvitationInboxRow = memo(function InvitationInboxRow({
   item,
   isAccepting,
   errorMessage,
@@ -197,7 +199,7 @@ function InvitationInboxRow({
       ) : null}
     </div>
   );
-}
+});
 
 function InvitationIcon() {
   return (
@@ -219,9 +221,11 @@ function AcceptIcon() {
 }
 
 function formatInvitationDate(value: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'numeric',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
+  return INVITATION_DATE_FORMATTER.format(new Date(value));
 }
+
+const INVITATION_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  month: 'numeric',
+  day: 'numeric',
+  year: 'numeric',
+});

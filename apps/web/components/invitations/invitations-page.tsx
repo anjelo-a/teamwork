@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type {
   InviteWorkspaceMemberResult,
   WorkspaceInvitationSummary,
@@ -30,15 +30,23 @@ export function InvitationsPage({
   currentUserRole,
   accessToken,
 }: InvitationsPageProps) {
-  const [items, setItems] = useState(invitations);
+  const [createdInvitations, setCreatedInvitations] = useState<WorkspaceInvitationSummary[]>([]);
+  const [removedInvitationIds, setRemovedInvitationIds] = useState<Record<string, true>>({});
   const [rowState, setRowState] = useState<RowState>({});
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [successResult, setSuccessResult] = useState<InviteWorkspaceMemberResult | null>(null);
   const isOwner = currentUserRole === 'owner';
 
-  useEffect(() => {
-    setItems(invitations);
-  }, [invitations]);
+  const items = useMemo(() => {
+    const visibleServerInvitations = invitations.filter(
+      (invitation) => !removedInvitationIds[invitation.id],
+    );
+    const visibleCreatedInvitations = createdInvitations.filter(
+      (invitation) => !removedInvitationIds[invitation.id],
+    );
+
+    return [...visibleServerInvitations, ...visibleCreatedInvitations];
+  }, [createdInvitations, invitations, removedInvitationIds]);
 
   const sortedItems = useMemo(
     () =>
@@ -64,7 +72,10 @@ export function InvitationsPage({
 
     try {
       await revokeWorkspaceInvitation(workspaceId, invitation.id, accessToken);
-      setItems((current) => current.filter((item) => item.id !== invitation.id));
+      setRemovedInvitationIds((current) => ({
+        ...current,
+        [invitation.id]: true,
+      }));
       setRowState((current) => {
         const { [invitation.id]: removed, ...remaining } = current;
         void removed;
@@ -167,7 +178,16 @@ export function InvitationsPage({
         }}
         onCreated={(result) => {
           setSuccessResult(result);
-          setItems((current) => [...current, result.invitation]);
+          setRemovedInvitationIds((current) => {
+            if (!current[result.invitation.id]) {
+              return current;
+            }
+
+            const { [result.invitation.id]: _removed, ...remaining } = current;
+            void _removed;
+            return remaining;
+          });
+          setCreatedInvitations((current) => [...current, result.invitation]);
         }}
       />
     </>
@@ -206,7 +226,7 @@ export function InvitationsPageSkeleton() {
   );
 }
 
-function InvitationRow({
+const InvitationRow = memo(function InvitationRow({
   invitation,
   isOwner,
   isRevoking,
@@ -259,7 +279,7 @@ function InvitationRow({
       ) : null}
     </div>
   );
-}
+});
 
 function InviteIcon() {
   return (
@@ -280,9 +300,11 @@ function CloseIcon() {
 }
 
 function formatInvitationDate(value: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'numeric',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
+  return INVITATION_DATE_FORMATTER.format(new Date(value));
 }
+
+const INVITATION_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  month: 'numeric',
+  day: 'numeric',
+  year: 'numeric',
+});

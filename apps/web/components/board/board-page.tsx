@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import type { TaskSummary, WorkspaceResponse } from '@teamwork/types';
 import { BoardColumn } from '@/components/board/board-column';
 import { BoardFiltersPanel } from '@/components/board/board-filters';
@@ -26,7 +26,7 @@ interface BoardPageProps {
   onTaskOpen: (taskId: string) => void;
 }
 
-export function BoardPage({
+export const BoardPage = memo(function BoardPage({
   workspace,
   tasks,
   assigneeFilter,
@@ -81,4 +81,4 @@ export function BoardPage({
       </div>
     </div>
   );
-}
+});

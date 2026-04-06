@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import type { AuthenticatedWorkspace, TaskSummary } from '@teamwork/types';
 import {
   ContentPanel,
@@ -101,7 +101,19 @@ export function TaskInboxPageSkeleton() {
   );
 }
 
-function TaskInboxRow({
+const TASK_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+const TASK_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  month: 'numeric',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+const TaskInboxRow = memo(function TaskInboxRow({
   task,
   workspaceName,
   onOpen,
@@ -144,7 +156,7 @@ function TaskInboxRow({
       </div>
     </button>
   );
-}
+});
 
 function TaskMeta({ label }: { label: string }) {
   return <span className="font-medium">{label}</span>;
@@ -175,17 +187,9 @@ function getStatusTone(status: TaskSummary['status']): 'accent' | 'progress' | '
 }
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(`${value}T00:00:00.000Z`));
+  return TASK_DATE_FORMATTER.format(new Date(`${value}T00:00:00.000Z`));
 }
 
 function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'numeric',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
+  return TASK_DATE_TIME_FORMATTER.format(new Date(value));
 }
