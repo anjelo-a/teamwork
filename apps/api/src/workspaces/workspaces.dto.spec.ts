@@ -6,11 +6,11 @@ import { UpdateWorkspaceMemberDto } from './dto/update-workspace-member.dto';
 describe('Workspace member DTOs', () => {
   it('accepts only owner and member when inviting a workspace member', async () => {
     const ownerDto = plainToInstance(AddWorkspaceMemberDto, {
-      email: 'owner@example.com',
+      email: ' owner@example.com ',
       role: 'owner',
     });
     const memberDto = plainToInstance(AddWorkspaceMemberDto, {
-      email: 'member@example.com',
+      email: ' member@example.com ',
       role: 'member',
     });
     const invalidDto = plainToInstance(AddWorkspaceMemberDto, {
@@ -20,6 +20,8 @@ describe('Workspace member DTOs', () => {
 
     await expect(validate(ownerDto)).resolves.toHaveLength(0);
     await expect(validate(memberDto)).resolves.toHaveLength(0);
+    expect(ownerDto.email).toBe('owner@example.com');
+    expect(memberDto.email).toBe('member@example.com');
     await expect(validate(invalidDto)).resolves.toEqual(
       expect.arrayContaining([expect.objectContaining({ property: 'role' })]),
     );

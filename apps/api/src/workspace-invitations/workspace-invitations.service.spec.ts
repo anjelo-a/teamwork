@@ -1022,7 +1022,7 @@ describe('WorkspaceInvitationsService', () => {
     );
   });
 
-  it('expired, revoked, accepted, and unknown tokens are rejected correctly during lookup', async () => {
+  it('lookup derives accepted, revoked, and expired statuses and rejects unknown tokens', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-04-03T00:00:00.000Z'));
     prisma.workspaceInvitation.findUnique
       .mockResolvedValueOnce({
@@ -1081,7 +1081,8 @@ describe('WorkspaceInvitationsService', () => {
           createdAt: new Date('2026-03-26T00:00:00.000Z'),
           updatedAt: new Date('2026-03-26T00:00:00.000Z'),
         },
-      });
+      })
+      .mockResolvedValueOnce(null);
 
     try {
       await expect(service.getInvitationByToken('accepted-token')).resolves.toMatchObject({
@@ -1093,6 +1094,9 @@ describe('WorkspaceInvitationsService', () => {
       await expect(service.getInvitationByToken('expired-token')).resolves.toMatchObject({
         status: 'expired',
       });
+      await expect(service.getInvitationByToken('unknown-token')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     } finally {
       jest.useRealTimers();
     }
