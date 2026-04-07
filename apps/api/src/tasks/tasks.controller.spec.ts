@@ -62,10 +62,16 @@ describe('TasksController', () => {
       assignment: 'me',
       referenceDate: '2026-04-02',
     };
-    tasksService.listTasksForWorkspace.mockResolvedValueOnce([{ id: taskId }]);
+    tasksService.listTasksForWorkspace.mockResolvedValueOnce({
+      tasks: [{ id: taskId }],
+      limit: 200,
+      hasMore: false,
+    });
 
     await expect(controller.listTasks(user, workspaceId, filters)).resolves.toEqual({
       tasks: [{ id: taskId }],
+      limit: 200,
+      hasMore: false,
     });
     expect(tasksService.listTasksForWorkspace).toHaveBeenCalledWith({
       workspaceId,

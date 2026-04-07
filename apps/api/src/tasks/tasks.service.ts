@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, TaskStatus as PrismaTaskStatus, type User } from '@prisma/client';
 import { normalizeTaskDescription, normalizeTaskTitle } from '@teamwork/validation';
-import type { TaskDetails, TaskStatus, TaskSummary, UserSummary } from '@teamwork/types';
+import type { TaskDetails, TaskListResponse, TaskStatus, TaskSummary, UserSummary } from '@teamwork/types';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -130,7 +130,7 @@ export class TasksService {
     return this.toDetails(task);
   }
 
-  async listTasksForWorkspace(input: ListTasksForWorkspaceInput): Promise<TaskSummary[]> {
+  async listTasksForWorkspace(input: ListTasksForWorkspaceInput): Promise<TaskListResponse> {
     await this.membershipsService.requireMembership(input.workspaceId, input.currentUserId);
 
     return this.listTasks(input);
@@ -139,7 +139,7 @@ export class TasksService {
   async listTasksForUser(
     currentUserId: string,
     filters: TaskListFilters,
-  ): Promise<TaskSummary[]> {
+  ): Promise<TaskListResponse> {
     if (filters.workspaceId) {
       await this.membershipsService.requireMembership(filters.workspaceId, currentUserId);
     }
@@ -150,15 +150,22 @@ export class TasksService {
     });
   }
 
-  private async listTasks(input: ListTasksForUserInput): Promise<TaskSummary[]> {
+  private async listTasks(input: ListTasksForUserInput): Promise<TaskListResponse> {
     const tasks = await toTaskDatabase(this.prisma).task.findMany({
       where: this.buildTaskListWhere(input),
       select: taskDetailsSelect,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: MAX_TASK_LIST_RESULTS,
+      take: MAX_TASK_LIST_RESULTS + 1,
     });
 
-    return tasks.map((task) => this.toSummary(task));
+    const hasMore = tasks.length > MAX_TASK_LIST_RESULTS;
+    const visibleTasks = hasMore ? tasks.slice(0, MAX_TASK_LIST_RESULTS) : tasks;
+
+    return {
+      tasks: visibleTasks.map((task) => this.toSummary(task)),
+      limit: MAX_TASK_LIST_RESULTS,
+      hasMore,
+    };
   }
 
   async getTaskForWorkspace(

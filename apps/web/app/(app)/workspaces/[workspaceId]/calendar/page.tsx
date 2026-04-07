@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
-import type { TaskSummary } from '@teamwork/types';
 import { CreateTaskModal } from '@/components/board/create-task-modal';
 import { TaskDetailsModal } from '@/components/board/task-details-modal';
 import { CalendarLoadingState } from '@/components/calendar/calendar-loading';
@@ -24,7 +23,12 @@ import {
 import { useAuthenticatedApiResource } from '@/lib/hooks/use-authenticated-api-resource';
 import { useAppShellAction } from '@/lib/app-shell-action-context';
 import { readWorkspaceIdFromParams } from '@/lib/route-params';
-import { removeTaskSummary, upsertTaskSummary } from '@/lib/task-list';
+import {
+  applyTaskOverlayMutation,
+  applyTaskOverlayRemoval,
+  mergeTaskListOverlay,
+  type TaskListOverlay,
+} from '@/lib/task-list';
 
 export default function WorkspaceCalendarPage() {
   const params = useParams<{ workspaceId: string }>();
@@ -38,10 +42,13 @@ export default function WorkspaceCalendarPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [taskItemsState, setTaskItemsState] = useState<{
     key: string | null;
-    tasks: TaskSummary[];
+    overlay: TaskListOverlay;
   }>({
     key: null,
-    tasks: [],
+    overlay: {
+      tasks: [],
+      removedTaskIds: [],
+    },
   });
 
   const currentView = readCalendarView(searchParams.get('view'));
@@ -61,12 +68,11 @@ export default function WorkspaceCalendarPage() {
     key: taskQueryKey,
     load: (accessToken) => listWorkspaceTasks(workspaceId, accessToken),
   });
+  const baseTaskItems = tasksQuery.status === 'success' ? tasksQuery.data.tasks : [];
   const taskItems =
     taskItemsState.key === taskQueryKey
-      ? taskItemsState.tasks
-      : tasksQuery.status === 'success'
-        ? tasksQuery.data.tasks
-        : [];
+      ? mergeTaskListOverlay(baseTaskItems, taskItemsState.overlay)
+      : baseTaskItems;
 
   const applyCalendarParams = useCallback(
     (nextState: Partial<{ view: typeof currentView; filter: typeof currentFilter; date: string }>) => {
@@ -196,6 +202,14 @@ export default function WorkspaceCalendarPage() {
         <div className="flex min-h-0 flex-1 flex-col gap-4">
           {membersNote}
 
+          {tasksQuery.data.hasMore ? (
+            <PageSurface
+              eyebrow="Task list capped"
+              title={`Showing the newest ${tasksQuery.data.limit} tasks`}
+              description="This calendar has more tasks than the current response includes. Refine the view or date range to narrow the list."
+            />
+          ) : null}
+
           <CalendarPage
             workspace={workspaceQuery.data.workspace}
             tasks={taskItems}
@@ -223,7 +237,12 @@ export default function WorkspaceCalendarPage() {
         onCreated={(task) => {
           setTaskItemsState((current) => ({
             key: taskQueryKey,
-            tasks: upsertTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, task),
+            overlay: applyTaskOverlayMutation(
+              current.key === taskQueryKey
+                ? current.overlay
+                : { tasks: [], removedTaskIds: [] },
+              task,
+            ),
           }));
         }}
       />
@@ -238,14 +257,24 @@ export default function WorkspaceCalendarPage() {
         onTaskChanged={(task) => {
           setTaskItemsState((current) => ({
             key: taskQueryKey,
-            tasks: upsertTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, task),
+            overlay: applyTaskOverlayMutation(
+              current.key === taskQueryKey
+                ? current.overlay
+                : { tasks: [], removedTaskIds: [] },
+              task,
+            ),
           }));
         }}
         onTaskDeleted={(taskId) => {
           setSelectedTaskId(null);
           setTaskItemsState((current) => ({
             key: taskQueryKey,
-            tasks: removeTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, taskId),
+            overlay: applyTaskOverlayRemoval(
+              current.key === taskQueryKey
+                ? current.overlay
+                : { tasks: [], removedTaskIds: [] },
+              taskId,
+            ),
           }));
         }}
       />

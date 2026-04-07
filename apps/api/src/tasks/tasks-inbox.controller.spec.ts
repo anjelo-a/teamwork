@@ -38,10 +38,16 @@ describe('TasksInboxController', () => {
       assignment: 'me',
       referenceDate: '2026-04-02',
     };
-    tasksService.listTasksForUser.mockResolvedValueOnce([{ id: 'task-1' }]);
+    tasksService.listTasksForUser.mockResolvedValueOnce({
+      tasks: [{ id: 'task-1' }],
+      limit: 200,
+      hasMore: false,
+    });
 
     await expect(controller.listTasks(user, filters)).resolves.toEqual({
       tasks: [{ id: 'task-1' }],
+      limit: 200,
+      hasMore: false,
     });
     expect(tasksService.listTasksForUser).toHaveBeenCalledWith(user.id, filters);
   });

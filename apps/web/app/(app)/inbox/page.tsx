@@ -5,21 +5,29 @@ import type { TaskSummary } from '@teamwork/types';
 import { TaskDetailsModal } from '@/components/board/task-details-modal';
 import { TaskInboxPage, TaskInboxPageSkeleton } from '@/components/inbox/task-inbox-page';
 import { PageContainer } from '@/components/app-shell/page-container';
-import { PageStatusCard } from '@/components/app-shell/page-state';
+import { PageStatusCard, PageSurface } from '@/components/app-shell/page-state';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
 import { useAuthenticatedApiResource } from '@/lib/hooks/use-authenticated-api-resource';
 import { getWorkspaceMembers, listInboxTasks } from '@/lib/api/client';
-import { removeTaskSummary, upsertTaskSummary } from '@/lib/task-list';
+import {
+  applyTaskOverlayMutation,
+  applyTaskOverlayRemoval,
+  mergeTaskListOverlay,
+  type TaskListOverlay,
+} from '@/lib/task-list';
 
 export default function InboxPage() {
   const { auth } = useAuthSession();
   const [selectedTask, setSelectedTask] = useState<TaskSummary | null>(null);
   const [taskItemsState, setTaskItemsState] = useState<{
     key: string | null;
-    tasks: TaskSummary[];
+    overlay: TaskListOverlay;
   }>({
     key: null,
-    tasks: [],
+    overlay: {
+      tasks: [],
+      removedTaskIds: [],
+    },
   });
   const taskQueryKey = 'tasks:inbox';
   const inboxQuery = useAuthenticatedApiResource({
@@ -33,12 +41,11 @@ export default function InboxPage() {
         ? getWorkspaceMembers(selectedTask.workspaceId, accessToken)
         : Promise.resolve({ members: [] }),
   });
+  const baseTaskItems = inboxQuery.status === 'success' ? inboxQuery.data.tasks : [];
   const taskItems =
     taskItemsState.key === taskQueryKey
-      ? taskItemsState.tasks
-      : inboxQuery.status === 'success'
-        ? inboxQuery.data.tasks
-        : [];
+      ? mergeTaskListOverlay(baseTaskItems, taskItemsState.overlay)
+      : baseTaskItems;
 
   return (
     <PageContainer>
@@ -61,11 +68,21 @@ export default function InboxPage() {
       ) : null}
 
       {inboxQuery.status === 'success' && taskItems.length > 0 ? (
-        <TaskInboxPage
-          tasks={taskItems}
-          workspaces={auth.workspaces}
-          onTaskOpen={setSelectedTask}
-        />
+        <>
+          {inboxQuery.data.hasMore ? (
+            <PageSurface
+              eyebrow="Task list capped"
+              title={`Showing the newest ${inboxQuery.data.limit} tasks`}
+              description="Your inbox has additional tasks beyond this response. Narrow the view from a workspace board or calendar to work through the rest."
+            />
+          ) : null}
+
+          <TaskInboxPage
+            tasks={taskItems}
+            workspaces={auth.workspaces}
+            onTaskOpen={setSelectedTask}
+          />
+        </>
       ) : null}
 
       <TaskDetailsModal
@@ -85,14 +102,24 @@ export default function InboxPage() {
           setSelectedTask(task);
           setTaskItemsState((current) => ({
             key: taskQueryKey,
-            tasks: upsertTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, task),
+            overlay: applyTaskOverlayMutation(
+              current.key === taskQueryKey
+                ? current.overlay
+                : { tasks: [], removedTaskIds: [] },
+              task,
+            ),
           }));
         }}
         onTaskDeleted={(taskId) => {
           setSelectedTask(null);
           setTaskItemsState((current) => ({
             key: taskQueryKey,
-            tasks: removeTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, taskId),
+            overlay: applyTaskOverlayRemoval(
+              current.key === taskQueryKey
+                ? current.overlay
+                : { tasks: [], removedTaskIds: [] },
+              taskId,
+            ),
           }));
         }}
       />

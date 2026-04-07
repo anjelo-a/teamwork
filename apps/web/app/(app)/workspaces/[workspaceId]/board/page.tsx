@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import type { TaskSummary } from '@teamwork/types';
 import { CreateTaskModal } from '@/components/board/create-task-modal';
 import { BoardLoadingState } from '@/components/board/board-loading';
 import { BoardPage } from '@/components/board/board-page';
@@ -26,7 +25,12 @@ import {
 import { useAuthenticatedApiResource } from '@/lib/hooks/use-authenticated-api-resource';
 import { useAppShellAction } from '@/lib/app-shell-action-context';
 import { readWorkspaceIdFromParams } from '@/lib/route-params';
-import { removeTaskSummary, upsertTaskSummary } from '@/lib/task-list';
+import {
+  applyTaskOverlayMutation,
+  applyTaskOverlayRemoval,
+  mergeTaskListOverlay,
+  type TaskListOverlay,
+} from '@/lib/task-list';
 
 const STATUS_OPTIONS: BoardStatusFilter[] = ['all', 'todo', 'in_progress', 'done'];
 
@@ -40,10 +44,13 @@ export default function WorkspaceBoardPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [taskItemsState, setTaskItemsState] = useState<{
     key: string | null;
-    tasks: TaskSummary[];
+    overlay: TaskListOverlay;
   }>({
     key: null,
-    tasks: [],
+    overlay: {
+      tasks: [],
+      removedTaskIds: [],
+    },
   });
   const { setActionOverride } = useAppShellAction();
 
@@ -80,12 +87,11 @@ export default function WorkspaceBoardPage() {
         backendAssignmentFilter ? { assignment: backendAssignmentFilter } : undefined,
       ),
   });
+  const baseTaskItems = tasksQuery.status === 'success' ? tasksQuery.data.tasks : [];
   const taskItems =
     taskItemsState.key === taskQueryKey
-      ? taskItemsState.tasks
-      : tasksQuery.status === 'success'
-        ? tasksQuery.data.tasks
-        : [];
+      ? mergeTaskListOverlay(baseTaskItems, taskItemsState.overlay)
+      : baseTaskItems;
 
   const openCreateTaskModal = useCallback(() => {
     setIsCreateTaskOpen(true);
@@ -167,6 +173,14 @@ export default function WorkspaceBoardPage() {
             />
           ) : null}
 
+          {tasksQuery.data.hasMore ? (
+            <PageSurface
+              eyebrow="Task list capped"
+              title={`Showing the newest ${tasksQuery.data.limit} tasks`}
+              description="This workspace has more tasks than the current response includes. Refine the board filters to narrow the list."
+            />
+          ) : null}
+
           <BoardPage
             workspace={workspaceQuery.data.workspace}
             tasks={taskItems}
@@ -192,15 +206,17 @@ export default function WorkspaceBoardPage() {
         onCreated={(task) => {
           setTaskItemsState((current) => ({
             key: taskQueryKey,
-            tasks: upsertTaskSummary(
-              current.key === taskQueryKey ? current.tasks : taskItems,
+            overlay: applyTaskOverlayMutation(
+              current.key === taskQueryKey
+                ? current.overlay
+                : { tasks: [], removedTaskIds: [] },
               task,
               {
-              shouldInclude: matchesTaskAssignmentFilter(
-                task,
-                backendAssignmentFilter,
-                auth.user.id,
-              ),
+                shouldInclude: matchesTaskAssignmentFilter(
+                  task,
+                  backendAssignmentFilter,
+                  auth.user.id,
+                ),
               },
             ),
           }));
@@ -217,15 +233,17 @@ export default function WorkspaceBoardPage() {
         onTaskChanged={(task) => {
           setTaskItemsState((current) => ({
             key: taskQueryKey,
-            tasks: upsertTaskSummary(
-              current.key === taskQueryKey ? current.tasks : taskItems,
+            overlay: applyTaskOverlayMutation(
+              current.key === taskQueryKey
+                ? current.overlay
+                : { tasks: [], removedTaskIds: [] },
               task,
               {
-              shouldInclude: matchesTaskAssignmentFilter(
-                task,
-                backendAssignmentFilter,
-                auth.user.id,
-              ),
+                shouldInclude: matchesTaskAssignmentFilter(
+                  task,
+                  backendAssignmentFilter,
+                  auth.user.id,
+                ),
               },
             ),
           }));
@@ -234,7 +252,12 @@ export default function WorkspaceBoardPage() {
           setSelectedTaskId(null);
           setTaskItemsState((current) => ({
             key: taskQueryKey,
-            tasks: removeTaskSummary(current.key === taskQueryKey ? current.tasks : taskItems, taskId),
+            overlay: applyTaskOverlayRemoval(
+              current.key === taskQueryKey
+                ? current.overlay
+                : { tasks: [], removedTaskIds: [] },
+              taskId,
+            ),
           }));
         }}
       />

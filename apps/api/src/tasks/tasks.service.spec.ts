@@ -186,10 +186,14 @@ describe('TasksService', () => {
       expect.objectContaining({
         where: { workspaceId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: 200,
+        take: 201,
       }),
     );
-    expect(result).toHaveLength(1);
+    expect(result).toEqual({
+      tasks: [expect.objectContaining({ id: taskId })],
+      limit: 200,
+      hasMore: false,
+    });
   });
 
   it('lists tasks for the current user across accessible workspaces', async () => {
@@ -210,10 +214,34 @@ describe('TasksService', () => {
           },
         },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: 200,
+        take: 201,
       }),
     );
-    expect(result).toHaveLength(1);
+    expect(result).toEqual({
+      tasks: [expect.objectContaining({ id: taskId })],
+      limit: 200,
+      hasMore: false,
+    });
+  });
+
+  it('exposes when a task list is truncated by the response limit', async () => {
+    prisma.task.findMany.mockResolvedValueOnce(
+      Array.from({ length: 201 }, (_, index) =>
+        buildTaskRecord({
+          id: `task-${index + 1}`,
+          createdAt: new Date(`2026-04-${String((index % 28) + 1).padStart(2, '0')}T00:00:00.000Z`),
+        }),
+      ),
+    );
+
+    const result = await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+    });
+
+    expect(result.tasks).toHaveLength(200);
+    expect(result.limit).toBe(200);
+    expect(result.hasMore).toBe(true);
   });
 
   it('reuses workspace-scoped listing when the user inbox is filtered to one workspace', async () => {
@@ -404,7 +432,7 @@ describe('TasksService', () => {
             equals: new Date('2026-04-02T00:00:00.000Z'),
           },
         },
-        take: 200,
+        take: 201,
       }),
     );
   });

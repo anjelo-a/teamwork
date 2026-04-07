@@ -16,8 +16,6 @@ export class TasksInboxController {
     @CurrentUser() user: RequestUser,
     @Query() filters: ListTaskFiltersDto,
   ): Promise<TaskListResponse> {
-    return {
-      tasks: await this.tasksService.listTasksForUser(user.id, filters),
-    };
+    return this.tasksService.listTasksForUser(user.id, filters);
   }
 }

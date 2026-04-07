@@ -86,6 +86,8 @@ export interface TaskResponse {
 
 export interface TaskListResponse {
   tasks: TaskSummary[];
+  limit: number;
+  hasMore: boolean;
 }
 
 export interface TaskDeleteResponse {

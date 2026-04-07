@@ -40,13 +40,11 @@ export class TasksController {
       throw new BadRequestException('workspaceId query param must match the route workspaceId.');
     }
 
-    return {
-      tasks: await this.tasksService.listTasksForWorkspace({
-        workspaceId,
-        currentUserId: user.id,
-        ...taskFilters,
-      }),
-    };
+    return this.tasksService.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: user.id,
+      ...taskFilters,
+    });
   }
 
   @Post()

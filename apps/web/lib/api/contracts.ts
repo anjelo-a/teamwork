@@ -121,6 +121,8 @@ export function parseTaskListResponse(value: unknown): TaskListResponse {
 
   return {
     tasks: readArray(record['tasks'], parseTaskSummary),
+    limit: readNumber(record['limit']),
+    hasMore: readBoolean(record['hasMore']),
   };
 }
 
@@ -270,6 +272,14 @@ function readNullableString(value: unknown): string | null {
 function readNumber(value: unknown): number {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     throw new Error('Expected number value.');
+  }
+
+  return value;
+}
+
+function readBoolean(value: unknown): boolean {
+  if (typeof value !== 'boolean') {
+    throw new Error('Expected boolean value.');
   }
 
   return value;
