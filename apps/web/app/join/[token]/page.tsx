@@ -88,6 +88,8 @@ export default function WorkspaceJoinPage() {
     );
   }
 
+  const isShareLinkActive = lookup.status === 'active';
+
   if (status === 'loading') {
     return (
       <main className="flex min-h-screen items-center justify-center px-6 py-10">
@@ -110,8 +112,18 @@ export default function WorkspaceJoinPage() {
           Join {lookup.workspace.name}
         </h1>
         <p className="mt-2 text-[0.96rem] leading-7 text-muted">
-          This workspace share link grants <span className="font-semibold text-foreground">{lookup.shareLink.role}</span> access.
+          This workspace share link grants{' '}
+          <span className="font-semibold text-foreground">{lookup.shareLink.role}</span> access.
         </p>
+        <p className="mt-2 text-[0.9rem] leading-6 text-muted">
+          Status: <span className="font-medium text-foreground">{formatStatus(lookup.status)}</span>
+          {' '}· Expires {formatDate(lookup.shareLink.expiresAt)}
+        </p>
+        {lookup.shareLink.lastUsedAt ? (
+          <p className="mt-2 text-[0.9rem] leading-6 text-muted">
+            Last used {formatDate(lookup.shareLink.lastUsedAt)}.
+          </p>
+        ) : null}
 
         {joinError ? <FormMessage message={joinError} /> : null}
 
@@ -127,7 +139,7 @@ export default function WorkspaceJoinPage() {
             </AppButton>
           ) : null}
 
-          {status === 'authenticated' && !existingWorkspace ? (
+          {status === 'authenticated' && !existingWorkspace && isShareLinkActive ? (
             <AppButton
               type="button"
               disabled={isJoining || !accessToken}
@@ -156,7 +168,19 @@ export default function WorkspaceJoinPage() {
             </AppButton>
           ) : null}
 
-          {status !== 'authenticated' ? (
+          {!isShareLinkActive ? (
+            <PageStatusCard
+              title="Workspace link inactive"
+              description={
+                lookup.status === 'expired'
+                  ? 'This workspace share link has expired. Ask a workspace owner for a new one.'
+                  : 'This workspace share link has been disabled. Ask a workspace owner for a new one.'
+              }
+              tone="warning"
+            />
+          ) : null}
+
+          {status !== 'authenticated' && isShareLinkActive ? (
             <>
               <AppButton
                 type="button"
@@ -181,4 +205,26 @@ export default function WorkspaceJoinPage() {
       </section>
     </main>
   );
+}
+
+const DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+function formatDate(value: string): string {
+  return DATE_FORMATTER.format(new Date(value));
+}
+
+function formatStatus(status: PublicWorkspaceShareLinkLookup['status']): string {
+  if (status === 'expired') {
+    return 'Expired';
+  }
+
+  if (status === 'revoked') {
+    return 'Disabled';
+  }
+
+  return 'Active';
 }

@@ -18,7 +18,7 @@ export function AuthRedirectGuard({ children }: { children: ReactNode }) {
 
     const nextPath = searchParams.get('next');
 
-    if (nextPath) {
+    if (isSafeInternalPath(nextPath)) {
       router.replace(nextPath);
       return;
     }
@@ -71,4 +71,8 @@ export function AuthRedirectGuard({ children }: { children: ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+function isSafeInternalPath(value: string | null): value is string {
+  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//');
 }

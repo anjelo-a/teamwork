@@ -139,6 +139,7 @@ export function parsePublicWorkspaceShareLinkLookup(
   return {
     shareLink: parsePublicWorkspaceShareLinkSummary(record['shareLink']),
     workspace: parseWorkspaceSummary(record['workspace']),
+    status: readWorkspaceShareLinkStatus(record['status']),
   };
 }
 
@@ -265,9 +266,13 @@ function parseWorkspaceShareLinkSummary(
     workspaceId: readString(record['workspaceId']),
     role: readWorkspaceRole(record['role']),
     createdByUserId: readString(record['createdByUserId']),
+    expiresAt: readString(record['expiresAt']),
+    revokedAt: readNullableString(record['revokedAt']),
+    lastUsedAt: readNullableString(record['lastUsedAt']),
     createdAt: readString(record['createdAt']),
     updatedAt: readString(record['updatedAt']),
-    url: readString(record['url']),
+    status: readWorkspaceShareLinkStatus(record['status']),
+    url: readNullableString(record['url']),
   };
 }
 
@@ -280,6 +285,9 @@ function parsePublicWorkspaceShareLinkSummary(
     id: readString(record['id']),
     workspaceId: readString(record['workspaceId']),
     role: readWorkspaceRole(record['role']),
+    expiresAt: readString(record['expiresAt']),
+    revokedAt: readNullableString(record['revokedAt']),
+    lastUsedAt: readNullableString(record['lastUsedAt']),
     createdAt: readString(record['createdAt']),
     updatedAt: readString(record['updatedAt']),
   };
@@ -357,6 +365,16 @@ function readNumber(value: unknown): number {
   }
 
   return value;
+}
+
+function readWorkspaceShareLinkStatus(
+  value: unknown,
+): PublicWorkspaceShareLinkLookup['status'] {
+  if (value === 'active' || value === 'revoked' || value === 'expired') {
+    return value;
+  }
+
+  throw new Error('Expected workspace share link status value.');
 }
 
 function readBoolean(value: unknown): boolean {

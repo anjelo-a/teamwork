@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -17,6 +18,7 @@ import type {
   PublicWorkspaceShareLinkSummary,
   WorkspaceInvitationSummary,
   WorkspaceRole,
+  WorkspaceShareLinkStatus,
   WorkspaceShareLinkSummary,
   WorkspaceSummary,
 } from '@teamwork/types';
@@ -70,9 +72,12 @@ const publicInvitationWithWorkspaceSelect = {
 const workspaceShareLinkSummarySelect = {
   id: true,
   workspaceId: true,
-  token: true,
+  tokenHash: true,
   role: true,
   createdByUserId: true,
+  expiresAt: true,
+  revokedAt: true,
+  lastUsedAt: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.WorkspaceShareLinkSelect;
@@ -121,6 +126,9 @@ interface WorkspaceMembershipRepository {
 }
 
 interface WorkspaceShareLinkRepository {
+  findFirst<T extends Prisma.WorkspaceShareLinkFindFirstArgs>(
+    args: Prisma.SelectSubset<T, Prisma.WorkspaceShareLinkFindFirstArgs>,
+  ): Promise<Prisma.WorkspaceShareLinkGetPayload<T> | null>;
   findUnique<T extends Prisma.WorkspaceShareLinkFindUniqueArgs>(
     args: Prisma.SelectSubset<T, Prisma.WorkspaceShareLinkFindUniqueArgs>,
   ): Promise<Prisma.WorkspaceShareLinkGetPayload<T> | null>;
@@ -130,6 +138,9 @@ interface WorkspaceShareLinkRepository {
   update<T extends Prisma.WorkspaceShareLinkUpdateArgs>(
     args: Prisma.SelectSubset<T, Prisma.WorkspaceShareLinkUpdateArgs>,
   ): Promise<Prisma.WorkspaceShareLinkGetPayload<T>>;
+  updateMany<T extends Prisma.WorkspaceShareLinkUpdateManyArgs>(
+    args: Prisma.SelectSubset<T, Prisma.WorkspaceShareLinkUpdateManyArgs>,
+  ): Promise<Prisma.BatchPayload>;
 }
 
 interface InvitationDatabase {
@@ -296,14 +307,14 @@ export class WorkspaceInvitationsService {
     createdByUserId: string,
   ): Promise<{ shareLink: WorkspaceShareLinkSummary }> {
     return this.prisma.$transaction(async (tx) => {
-      const shareLink = await this.getOrCreateWorkspaceShareLink(
+      const { shareLink, token } = await this.getOrCreateWorkspaceShareLink(
         workspaceId,
         createdByUserId,
         toInvitationDatabase(tx),
       );
 
       return {
-        shareLink: this.toWorkspaceShareLinkSummary(shareLink),
+        shareLink: this.toWorkspaceShareLinkSummary(shareLink, token),
       };
     });
   }
@@ -313,12 +324,20 @@ export class WorkspaceInvitationsService {
     role: WorkspaceRole,
     createdByUserId: string,
   ): Promise<{ shareLink: WorkspaceShareLinkSummary }> {
+    if (role !== 'member') {
+      throw new BadRequestException('Workspace share links can only grant member access.');
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const db = toInvitationDatabase(tx);
-      const shareLink = await this.getOrCreateWorkspaceShareLink(workspaceId, createdByUserId, db);
+      const { shareLink } = await this.getOrCreateWorkspaceShareLink(
+        workspaceId,
+        createdByUserId,
+        db,
+      );
       const updatedShareLink = await db.workspaceShareLink.update({
         where: { id: shareLink.id },
-        data: { role },
+        data: { role, revokedAt: null },
         select: workspaceShareLinkSummarySelect,
       });
 
@@ -334,19 +353,49 @@ export class WorkspaceInvitationsService {
   ): Promise<{ shareLink: WorkspaceShareLinkSummary }> {
     return this.prisma.$transaction(async (tx) => {
       const db = toInvitationDatabase(tx);
-      const shareLink = await this.getOrCreateWorkspaceShareLink(workspaceId, createdByUserId, db);
+      const { shareLink } = await this.getOrCreateWorkspaceShareLink(
+        workspaceId,
+        createdByUserId,
+        db,
+      );
       const token = createInvitationToken();
       const updatedShareLink = await db.workspaceShareLink.update({
         where: { id: shareLink.id },
         data: {
-          token,
+          tokenHash: createInvitationTokenHash(token),
+          role: 'member',
           createdByUserId,
+          expiresAt: this.createWorkspaceShareLinkExpiresAt(),
+          revokedAt: null,
         },
         select: workspaceShareLinkSummarySelect,
       });
 
       return {
-        shareLink: this.toWorkspaceShareLinkSummary(updatedShareLink),
+        shareLink: this.toWorkspaceShareLinkSummary(updatedShareLink, token),
+      };
+    });
+  }
+
+  async disableWorkspaceShareLink(
+    workspaceId: string,
+    createdByUserId: string,
+  ): Promise<{ shareLink: WorkspaceShareLinkSummary }> {
+    return this.prisma.$transaction(async (tx) => {
+      const db = toInvitationDatabase(tx);
+      const { shareLink } = await this.getOrCreateWorkspaceShareLink(
+        workspaceId,
+        createdByUserId,
+        db,
+      );
+      const disabledShareLink = await db.workspaceShareLink.update({
+        where: { id: shareLink.id },
+        data: { revokedAt: new Date() },
+        select: workspaceShareLinkSummarySelect,
+      });
+
+      return {
+        shareLink: this.toWorkspaceShareLinkSummary(disabledShareLink),
       };
     });
   }
@@ -366,9 +415,9 @@ export class WorkspaceInvitationsService {
   }
 
   async getWorkspaceShareLinkByToken(token: string): Promise<PublicWorkspaceShareLinkLookup> {
-    const shareLink = await toInvitationDatabase(this.prisma).workspaceShareLink.findUnique({
+    const shareLink = await toInvitationDatabase(this.prisma).workspaceShareLink.findFirst({
       where: {
-        token,
+        tokenHash: createInvitationTokenHash(token),
       },
       select: workspaceShareLinkWithWorkspaceSelect,
     });
@@ -380,6 +429,7 @@ export class WorkspaceInvitationsService {
     return {
       shareLink: this.toPublicWorkspaceShareLinkSummary(shareLink),
       workspace: this.toWorkspaceSummary(shareLink.workspace),
+      status: this.toWorkspaceShareLinkStatus(shareLink),
     };
   }
 
@@ -387,9 +437,9 @@ export class WorkspaceInvitationsService {
     token: string,
     user: Pick<RequestUser, 'id' | 'email'>,
   ): Promise<{ membership: ReturnType<MembershipsService['toDetail']> }> {
-    const shareLink = await toInvitationDatabase(this.prisma).workspaceShareLink.findUnique({
+    const shareLink = await toInvitationDatabase(this.prisma).workspaceShareLink.findFirst({
       where: {
-        token,
+        tokenHash: createInvitationTokenHash(token),
       },
       select: workspaceShareLinkSummarySelect,
     });
@@ -416,6 +466,12 @@ export class WorkspaceInvitationsService {
     shareLink: WorkspaceShareLinkSummaryRecord,
     user: Pick<RequestUser, 'id' | 'email'>,
   ): Promise<{ membership: ReturnType<MembershipsService['toDetail']> }> {
+    if (shareLink.role !== 'member') {
+      throw new BadRequestException('Workspace share links can only grant member access.');
+    }
+
+    this.assertWorkspaceShareLinkIsActive(shareLink);
+
     return this.prisma.$transaction(async (tx) => {
       const existingMembership = await tx.workspaceMembership.findUnique({
         where: {
@@ -434,10 +490,16 @@ export class WorkspaceInvitationsService {
         {
           workspaceId: shareLink.workspaceId,
           userId: user.id,
-          role: shareLink.role,
+          role: 'member',
         },
         tx,
       );
+
+      await tx.workspaceShareLink.update({
+        where: { id: shareLink.id },
+        data: { lastUsedAt: new Date() },
+        select: workspaceShareLinkSummarySelect,
+      });
 
       const currentUser = await this.usersService.getByIdOrThrow(user.id, tx);
 
@@ -494,30 +556,46 @@ export class WorkspaceInvitationsService {
   private toWorkspaceShareLinkSummary(
     shareLink: Pick<
       WorkspaceShareLink,
-      'id' | 'workspaceId' | 'token' | 'role' | 'createdByUserId' | 'createdAt' | 'updatedAt'
+      | 'id'
+      | 'workspaceId'
+      | 'role'
+      | 'createdByUserId'
+      | 'expiresAt'
+      | 'revokedAt'
+      | 'lastUsedAt'
+      | 'createdAt'
+      | 'updatedAt'
     >,
+    token?: string,
   ): WorkspaceShareLinkSummary {
     return {
       id: shareLink.id,
       workspaceId: shareLink.workspaceId,
       role: shareLink.role,
       createdByUserId: shareLink.createdByUserId,
+      expiresAt: shareLink.expiresAt.toISOString(),
+      revokedAt: shareLink.revokedAt?.toISOString() ?? null,
+      lastUsedAt: shareLink.lastUsedAt?.toISOString() ?? null,
       createdAt: shareLink.createdAt.toISOString(),
       updatedAt: shareLink.updatedAt.toISOString(),
-      url: this.buildWorkspaceShareUrl(shareLink.token),
+      status: this.toWorkspaceShareLinkStatus(shareLink),
+      url: token ? this.buildWorkspaceShareUrl(token) : null,
     };
   }
 
   private toPublicWorkspaceShareLinkSummary(
     shareLink: Pick<
       WorkspaceShareLink,
-      'id' | 'workspaceId' | 'role' | 'createdAt' | 'updatedAt'
+      'id' | 'workspaceId' | 'role' | 'expiresAt' | 'revokedAt' | 'lastUsedAt' | 'createdAt' | 'updatedAt'
     >,
   ): PublicWorkspaceShareLinkSummary {
     return {
       id: shareLink.id,
       workspaceId: shareLink.workspaceId,
       role: shareLink.role,
+      expiresAt: shareLink.expiresAt.toISOString(),
+      revokedAt: shareLink.revokedAt?.toISOString() ?? null,
+      lastUsedAt: shareLink.lastUsedAt?.toISOString() ?? null,
       createdAt: shareLink.createdAt.toISOString(),
       updatedAt: shareLink.updatedAt.toISOString(),
     };
@@ -560,7 +638,7 @@ export class WorkspaceInvitationsService {
     workspaceId: string,
     createdByUserId: string,
     db: InvitationDatabase,
-  ): Promise<WorkspaceShareLinkSummaryRecord> {
+  ): Promise<{ shareLink: WorkspaceShareLinkSummaryRecord; token?: string }> {
     const existingShareLink = await db.workspaceShareLink.findUnique({
       where: {
         workspaceId,
@@ -569,21 +647,24 @@ export class WorkspaceInvitationsService {
     });
 
     if (existingShareLink) {
-      return existingShareLink;
+      return { shareLink: existingShareLink };
     }
 
     const token = createInvitationToken();
 
     try {
-      return await db.workspaceShareLink.create({
+      const shareLink = await db.workspaceShareLink.create({
         data: {
           workspaceId,
-          token,
+          tokenHash: createInvitationTokenHash(token),
           role: 'member',
           createdByUserId,
+          expiresAt: this.createWorkspaceShareLinkExpiresAt(),
         },
         select: workspaceShareLinkSummarySelect,
       });
+
+      return { shareLink, token };
     } catch (error) {
       if (isUniqueConstraintError(error)) {
         const shareLink = await db.workspaceShareLink.findUnique({
@@ -592,7 +673,7 @@ export class WorkspaceInvitationsService {
         });
 
         if (shareLink) {
-          return shareLink;
+          return { shareLink };
         }
       }
 
@@ -680,6 +761,11 @@ export class WorkspaceInvitationsService {
     return new Date(from.getTime() + inviteTtlDays * MILLISECONDS_PER_DAY);
   }
 
+  private createWorkspaceShareLinkExpiresAt(from = new Date()): Date {
+    const shareLinkTtlDays = this.configService.get<number>('SHARE_LINK_TTL_DAYS') ?? 14;
+    return new Date(from.getTime() + shareLinkTtlDays * MILLISECONDS_PER_DAY);
+  }
+
   private toPublicStatus(
     invitation: Pick<WorkspaceInvitation, 'acceptedAt' | 'revokedAt' | 'expiresAt'>,
   ): PublicWorkspaceInvitationStatus {
@@ -696,6 +782,20 @@ export class WorkspaceInvitationsService {
     }
 
     return 'pending';
+  }
+
+  private toWorkspaceShareLinkStatus(
+    shareLink: Pick<WorkspaceShareLink, 'expiresAt' | 'revokedAt'>,
+  ): WorkspaceShareLinkStatus {
+    if (shareLink.revokedAt) {
+      return 'revoked';
+    }
+
+    if (shareLink.expiresAt.getTime() <= Date.now()) {
+      return 'expired';
+    }
+
+    return 'active';
   }
 
   private async findInvitationForAcceptance(
@@ -785,6 +885,18 @@ export class WorkspaceInvitationsService {
 
     if (invitation.expiresAt.getTime() <= Date.now()) {
       throw new ConflictException('Invitation has expired.');
+    }
+  }
+
+  private assertWorkspaceShareLinkIsActive(
+    shareLink: Pick<WorkspaceShareLink, 'expiresAt' | 'revokedAt'>,
+  ): void {
+    if (shareLink.revokedAt) {
+      throw new ConflictException('Workspace share link has been disabled.');
+    }
+
+    if (shareLink.expiresAt.getTime() <= Date.now()) {
+      throw new ConflictException('Workspace share link has expired.');
     }
   }
 }

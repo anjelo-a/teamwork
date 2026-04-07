@@ -20,9 +20,10 @@ export function AppShell({ children }: AppShellProps): ReactNode {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.replace('/auth-required');
+      const nextPath = encodeURIComponent(pathname || '/');
+      router.replace(`/auth-required?next=${nextPath}`);
     }
-  }, [router, status]);
+  }, [pathname, router, status]);
 
   if (status === 'error') {
     return (

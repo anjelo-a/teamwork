@@ -144,7 +144,7 @@ export async function getWorkspaceShareLink(
 export async function updateWorkspaceShareLink(
   workspaceId: string,
   accessToken: string,
-  role: 'owner' | 'member',
+  role: 'member',
 ): Promise<WorkspaceShareLinkResponse> {
   return apiRequest(`/workspaces/${workspaceId}/share-link`, {
     accessToken,
@@ -161,6 +161,17 @@ export async function regenerateWorkspaceShareLink(
   return apiRequest(`/workspaces/${workspaceId}/share-link/regenerate`, {
     accessToken,
     method: 'POST',
+    parser: parseWorkspaceShareLinkResponse,
+  });
+}
+
+export async function disableWorkspaceShareLink(
+  workspaceId: string,
+  accessToken: string,
+): Promise<WorkspaceShareLinkResponse> {
+  return apiRequest(`/workspaces/${workspaceId}/share-link`, {
+    accessToken,
+    method: 'DELETE',
     parser: parseWorkspaceShareLinkResponse,
   });
 }

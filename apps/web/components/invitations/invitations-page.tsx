@@ -9,9 +9,9 @@ import type {
 } from '@teamwork/types';
 import {
   ApiError,
+  disableWorkspaceShareLink,
   regenerateWorkspaceShareLink,
   revokeWorkspaceInvitation,
-  updateWorkspaceShareLink,
 } from '@/lib/api/client';
 import { InviteMemberModal } from '@/components/invitations/invite-member-modal';
 import {
@@ -19,7 +19,7 @@ import {
   StatusBadge,
 } from '@/components/app-shell/page-state';
 import { AppButton, getIconButtonClassName } from '@/components/ui/button';
-import { FormMessage, getTextControlClassName } from '@/components/ui/form-controls';
+import { FormMessage } from '@/components/ui/form-controls';
 
 interface InvitationsPageProps {
   workspaceId: string;
@@ -45,8 +45,8 @@ export function InvitationsPage({
   const [successResult, setSuccessResult] = useState<InviteWorkspaceMemberResult | null>(null);
   const [shareLink, setShareLink] = useState<WorkspaceShareLinkSummary | null>(workspaceShareLink);
   const [shareLinkErrorMessage, setShareLinkErrorMessage] = useState<string | null>(null);
-  const [isUpdatingShareLinkRole, setIsUpdatingShareLinkRole] = useState(false);
   const [isRegeneratingShareLink, setIsRegeneratingShareLink] = useState(false);
+  const [isDisablingShareLink, setIsDisablingShareLink] = useState(false);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const isOwner = currentUserRole === 'owner';
 
@@ -136,31 +136,6 @@ export function InvitationsPage({
     }
   }, [shareLink]);
 
-  const handleShareLinkRoleChange = useCallback(
-    async (role: WorkspaceRole) => {
-      if (!accessToken || !isOwner || !shareLink) {
-        return;
-      }
-
-      setIsUpdatingShareLinkRole(true);
-      setShareLinkErrorMessage(null);
-
-      try {
-        const result = await updateWorkspaceShareLink(workspaceId, accessToken, role);
-        setShareLink(result.shareLink);
-      } catch (error) {
-        setShareLinkErrorMessage(
-          error instanceof ApiError || error instanceof Error
-            ? error.message
-            : 'Workspace share link could not be updated.',
-        );
-      } finally {
-        setIsUpdatingShareLinkRole(false);
-      }
-    },
-    [accessToken, isOwner, shareLink, workspaceId],
-  );
-
   const handleRegenerateShareLink = useCallback(async () => {
     if (!accessToken || !isOwner) {
       return;
@@ -183,6 +158,29 @@ export function InvitationsPage({
       setIsRegeneratingShareLink(false);
     }
   }, [accessToken, isOwner, workspaceId]);
+
+  const handleDisableShareLink = useCallback(async () => {
+    if (!accessToken || !isOwner || !shareLink) {
+      return;
+    }
+
+    setIsDisablingShareLink(true);
+    setShareLinkErrorMessage(null);
+    setCopyState('idle');
+
+    try {
+      const result = await disableWorkspaceShareLink(workspaceId, accessToken);
+      setShareLink(result.shareLink);
+    } catch (error) {
+      setShareLinkErrorMessage(
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : 'Workspace share link could not be disabled.',
+      );
+    } finally {
+      setIsDisablingShareLink(false);
+    }
+  }, [accessToken, isOwner, shareLink, workspaceId]);
 
   return (
     <>
@@ -247,9 +245,13 @@ export function InvitationsPage({
                     onClick={() => {
                       void handleRegenerateShareLink();
                     }}
-                    disabled={isRegeneratingShareLink || isUpdatingShareLinkRole}
+                    disabled={isRegeneratingShareLink || isDisablingShareLink}
                   >
-                    {isRegeneratingShareLink ? 'Regenerating...' : 'Regenerate'}
+                    {isRegeneratingShareLink
+                      ? 'Regenerating...'
+                      : shareLink.status === 'active'
+                        ? 'Regenerate'
+                        : 'Create New Link'}
                   </AppButton>
                 ) : null}
                 {shareLink ? (
@@ -260,10 +262,30 @@ export function InvitationsPage({
                     onClick={() => {
                       void handleCopyInviteLink();
                     }}
-                    disabled={isRegeneratingShareLink || isUpdatingShareLinkRole}
+                    disabled={
+                      !shareLink.url || isRegeneratingShareLink || isDisablingShareLink
+                    }
                     className="shrink-0"
                   >
                     Copy Link
+                  </AppButton>
+                ) : null}
+                {shareLink ? (
+                  <AppButton
+                    type="button"
+                    variant="secondary"
+                    size="compact"
+                    onClick={() => {
+                      void handleDisableShareLink();
+                    }}
+                    disabled={
+                      shareLink.status !== 'active' ||
+                      isRegeneratingShareLink ||
+                      isDisablingShareLink
+                    }
+                    className="shrink-0"
+                  >
+                    {isDisablingShareLink ? 'Disabling...' : 'Disable Link'}
                   </AppButton>
                 ) : null}
               </div>
@@ -272,37 +294,47 @@ export function InvitationsPage({
             {shareLink ? (
               <>
                 <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                  <label className="max-w-[220px]">
+                  <div>
                     <span className="text-[0.82rem] font-semibold uppercase tracking-[0.18em] text-muted">
                       Access Role
                     </span>
-                    <select
-                      value={shareLink.role}
-                      disabled={isUpdatingShareLinkRole || isRegeneratingShareLink}
-                      onChange={(event) => {
-                        const nextRole = readWorkspaceRole(event.target.value);
-
-                        if (nextRole && nextRole !== shareLink.role) {
-                          void handleShareLinkRoleChange(nextRole);
-                        }
-                      }}
-                      className={`${getTextControlClassName(false)} mt-2`}
-                    >
-                      <option value="member">Member</option>
-                      <option value="owner">Owner</option>
-                    </select>
-                  </label>
+                    <p className="mt-2 text-[0.94rem] font-medium text-foreground">
+                      Member only
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[0.82rem] font-semibold uppercase tracking-[0.18em] text-muted">
+                      Link Status
+                    </span>
+                    <p className="mt-2 text-[0.94rem] font-medium text-foreground">
+                      {formatShareLinkStatus(shareLink.status)}
+                    </p>
+                  </div>
                 </div>
 
-                <a
-                  href={shareLink.url}
-                  className="mt-3 block break-all text-[0.9rem] font-medium leading-6 text-accent underline decoration-transparent underline-offset-4 transition-colors hover:decoration-current"
-                >
-                  {shareLink.url}
-                </a>
+                {shareLink.url ? (
+                  <a
+                    href={shareLink.url}
+                    className="mt-3 block break-all text-[0.9rem] font-medium leading-6 text-accent underline decoration-transparent underline-offset-4 transition-colors hover:decoration-current"
+                  >
+                    {shareLink.url}
+                  </a>
+                ) : (
+                  <div className="mt-3 rounded-[calc(var(--radius-control)+0.15rem)] border border-dashed border-line px-4 py-3 text-[0.85rem] leading-6 text-muted">
+                    The raw link is only shown when a new link is created or regenerated. Create a
+                    new link to copy and share it again.
+                  </div>
+                )}
                 <p className="mt-2 text-[0.82rem] leading-5 text-muted">
-                  This workspace link stays available until you regenerate it.
+                  Share links only grant member access. They expire on{' '}
+                  {formatDate(shareLink.expiresAt)}, can be disabled at any time, and old links stop
+                  working after regeneration.
                 </p>
+                {shareLink.lastUsedAt ? (
+                  <p className="mt-2 text-[0.82rem] leading-5 text-muted">
+                    Last used on {formatDate(shareLink.lastUsedAt)}.
+                  </p>
+                ) : null}
                 {copyState === 'copied' ? (
                   <p className="mt-2 text-[0.82rem] leading-5 text-foreground">
                     Workspace link copied.
@@ -475,12 +507,16 @@ const InvitationRow = memo(function InvitationRow({
   );
 });
 
-function readWorkspaceRole(value: string): WorkspaceRole | null {
-  if (value === 'owner' || value === 'member') {
-    return value;
+function formatShareLinkStatus(status: WorkspaceShareLinkSummary['status']): string {
+  if (status === 'expired') {
+    return 'Expired';
   }
 
-  return null;
+  if (status === 'revoked') {
+    return 'Disabled';
+  }
+
+  return 'Active';
 }
 
 function InviteIcon() {
@@ -502,6 +538,10 @@ function CloseIcon() {
 }
 
 function formatInvitationDate(value: string): string {
+  return INVITATION_DATE_FORMATTER.format(new Date(value));
+}
+
+function formatDate(value: string): string {
   return INVITATION_DATE_FORMATTER.format(new Date(value));
 }
 

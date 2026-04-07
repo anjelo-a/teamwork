@@ -1,4 +1,9 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { WorkspaceRole as PrismaWorkspaceRole } from '@prisma/client';
@@ -68,9 +73,11 @@ describe('WorkspaceInvitationsService', () => {
       findUnique: jest.Mock;
     };
     workspaceShareLink: {
+      findFirst: jest.Mock;
       findUnique: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
     };
     $transaction: jest.Mock;
   };
@@ -124,9 +131,11 @@ describe('WorkspaceInvitationsService', () => {
         findUnique: jest.fn(),
       },
       workspaceShareLink: {
+        findFirst: jest.fn(),
         findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       $transaction: jest.fn(runInTransaction),
     };
@@ -145,6 +154,10 @@ describe('WorkspaceInvitationsService', () => {
 
         if (key === 'INVITE_TTL_DAYS') {
           return 30;
+        }
+
+        if (key === 'SHARE_LINK_TTL_DAYS') {
+          return 14;
         }
 
         if (key === 'APP_URL') {
@@ -448,14 +461,17 @@ describe('WorkspaceInvitationsService', () => {
     }
   });
 
-  it('creates and returns a persistent workspace share link', async () => {
+  it('creates and returns a new workspace share link with a raw url once', async () => {
     prisma.workspaceShareLink.findUnique.mockResolvedValueOnce(null);
     prisma.workspaceShareLink.create.mockResolvedValueOnce({
       id: 'share-link-1',
       workspaceId,
-      token: 'share-token',
+      tokenHash: createHash('sha256').update('share-token').digest('hex'),
       role: PrismaWorkspaceRole.member,
       createdByUserId: 'owner-1',
+      expiresAt: new Date('2026-04-09T00:00:00.000Z'),
+      revokedAt: null,
+      lastUsedAt: null,
       createdAt: new Date('2026-03-26T00:00:00.000Z'),
       updatedAt: new Date('2026-03-26T00:00:00.000Z'),
     });
@@ -467,51 +483,59 @@ describe('WorkspaceInvitationsService', () => {
       workspaceId,
       role: 'member',
       createdByUserId: 'owner-1',
-      url: 'http://localhost:3000/join/share-token',
+      status: 'active',
     });
+    expect(result.shareLink.url).toContain('http://localhost:3000/join/');
   });
 
-  it('updates a workspace share link role', async () => {
+  it('returns existing workspace share links without exposing the raw url again', async () => {
     prisma.workspaceShareLink.findUnique.mockResolvedValueOnce({
       id: 'share-link-1',
       workspaceId,
-      token: 'share-token',
+      tokenHash: createHash('sha256').update('share-token').digest('hex'),
       role: PrismaWorkspaceRole.member,
       createdByUserId: 'owner-1',
+      expiresAt: new Date('2026-04-09T00:00:00.000Z'),
+      revokedAt: null,
+      lastUsedAt: null,
       createdAt: new Date('2026-03-26T00:00:00.000Z'),
       updatedAt: new Date('2026-03-26T00:00:00.000Z'),
     });
-    prisma.workspaceShareLink.update.mockResolvedValueOnce({
-      id: 'share-link-1',
-      workspaceId,
-      token: 'share-token',
-      role: PrismaWorkspaceRole.owner,
-      createdByUserId: 'owner-1',
-      createdAt: new Date('2026-03-26T00:00:00.000Z'),
-      updatedAt: new Date('2026-03-27T00:00:00.000Z'),
-    });
 
-    const result = await service.updateWorkspaceShareLink(workspaceId, 'owner', 'owner-1');
+    const result = await service.getWorkspaceShareLink(workspaceId, 'owner-1');
 
-    expect(result.shareLink.role).toBe('owner');
+    expect(result.shareLink.url).toBeNull();
+    expect(result.shareLink.status).toBe('active');
+  });
+
+  it('rejects owner access for workspace share link role updates', async () => {
+    await expect(
+      service.updateWorkspaceShareLink(workspaceId, 'owner', 'owner-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('regenerates an existing workspace share link token', async () => {
     prisma.workspaceShareLink.findUnique.mockResolvedValueOnce({
       id: 'share-link-1',
       workspaceId,
-      token: 'old-token',
+      tokenHash: createHash('sha256').update('old-token').digest('hex'),
       role: PrismaWorkspaceRole.member,
       createdByUserId: 'owner-1',
+      expiresAt: new Date('2026-04-09T00:00:00.000Z'),
+      revokedAt: null,
+      lastUsedAt: null,
       createdAt: new Date('2026-03-26T00:00:00.000Z'),
       updatedAt: new Date('2026-03-26T00:00:00.000Z'),
     });
     prisma.workspaceShareLink.update.mockImplementationOnce(async ({ data }) => ({
       id: 'share-link-1',
       workspaceId,
-      token: data.token,
+      tokenHash: data.tokenHash,
       role: PrismaWorkspaceRole.member,
       createdByUserId: 'owner-1',
+      expiresAt: data.expiresAt,
+      revokedAt: null,
+      lastUsedAt: null,
       createdAt: new Date('2026-03-26T00:00:00.000Z'),
       updatedAt: new Date('2026-03-27T00:00:00.000Z'),
     }));
@@ -520,15 +544,51 @@ describe('WorkspaceInvitationsService', () => {
 
     expect(result.shareLink.url).toContain('/join/');
     expect(result.shareLink.url).not.toContain('old-token');
+    expect(result.shareLink.status).toBe('active');
   });
 
-  it('looks up a workspace share link by token', async () => {
+  it('disables an existing workspace share link', async () => {
     prisma.workspaceShareLink.findUnique.mockResolvedValueOnce({
       id: 'share-link-1',
       workspaceId,
-      token: 'share-token',
+      tokenHash: createHash('sha256').update('share-token').digest('hex'),
       role: PrismaWorkspaceRole.member,
       createdByUserId: 'owner-1',
+      expiresAt: new Date('2026-04-09T00:00:00.000Z'),
+      revokedAt: null,
+      lastUsedAt: null,
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-26T00:00:00.000Z'),
+    });
+    prisma.workspaceShareLink.update.mockResolvedValueOnce({
+      id: 'share-link-1',
+      workspaceId,
+      tokenHash: createHash('sha256').update('share-token').digest('hex'),
+      role: PrismaWorkspaceRole.member,
+      createdByUserId: 'owner-1',
+      expiresAt: new Date('2026-04-09T00:00:00.000Z'),
+      revokedAt: new Date('2026-03-27T00:00:00.000Z'),
+      lastUsedAt: null,
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-27T00:00:00.000Z'),
+    });
+
+    const result = await service.disableWorkspaceShareLink(workspaceId, 'owner-1');
+
+    expect(result.shareLink.status).toBe('revoked');
+    expect(result.shareLink.url).toBeNull();
+  });
+
+  it('looks up a workspace share link by token', async () => {
+    prisma.workspaceShareLink.findFirst.mockResolvedValueOnce({
+      id: 'share-link-1',
+      workspaceId,
+      tokenHash: createHash('sha256').update('share-token').digest('hex'),
+      role: PrismaWorkspaceRole.member,
+      createdByUserId: 'owner-1',
+      expiresAt: new Date('2026-04-09T00:00:00.000Z'),
+      revokedAt: null,
+      lastUsedAt: null,
       createdAt: new Date('2026-03-26T00:00:00.000Z'),
       updatedAt: new Date('2026-03-26T00:00:00.000Z'),
       workspace: {
@@ -545,15 +605,19 @@ describe('WorkspaceInvitationsService', () => {
 
     expect(result.workspace).toMatchObject({ id: workspaceId, name: 'Workspace' });
     expect(result.shareLink.role).toBe('member');
+    expect(result.status).toBe('active');
   });
 
   it('accepts a workspace share link by creating a membership', async () => {
-    prisma.workspaceShareLink.findUnique.mockResolvedValueOnce({
+    prisma.workspaceShareLink.findFirst.mockResolvedValueOnce({
       id: 'share-link-1',
       workspaceId,
-      token: 'share-token',
+      tokenHash: createHash('sha256').update('share-token').digest('hex'),
       role: PrismaWorkspaceRole.member,
       createdByUserId: 'owner-1',
+      expiresAt: new Date('2026-04-09T00:00:00.000Z'),
+      revokedAt: null,
+      lastUsedAt: null,
       createdAt: new Date('2026-03-26T00:00:00.000Z'),
       updatedAt: new Date('2026-03-26T00:00:00.000Z'),
     });
@@ -569,6 +633,18 @@ describe('WorkspaceInvitationsService', () => {
       id: 'user-2',
       email: 'invitee@example.com',
       displayName: 'Invitee',
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-26T00:00:00.000Z'),
+    });
+    prisma.workspaceShareLink.update.mockResolvedValueOnce({
+      id: 'share-link-1',
+      workspaceId,
+      tokenHash: createHash('sha256').update('share-token').digest('hex'),
+      role: PrismaWorkspaceRole.member,
+      createdByUserId: 'owner-1',
+      expiresAt: new Date('2026-04-09T00:00:00.000Z'),
+      revokedAt: null,
+      lastUsedAt: new Date('2026-03-26T00:00:00.000Z'),
       createdAt: new Date('2026-03-26T00:00:00.000Z'),
       updatedAt: new Date('2026-03-26T00:00:00.000Z'),
     });
