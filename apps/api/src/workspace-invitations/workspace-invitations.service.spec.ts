@@ -2,6 +2,7 @@ import { ConflictException, ForbiddenException, NotFoundException } from '@nestj
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { WorkspaceRole as PrismaWorkspaceRole } from '@prisma/client';
+import { createHash } from 'node:crypto';
 import type { UserSummary, WorkspaceMemberDetail } from '@teamwork/types';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -61,6 +62,7 @@ describe('WorkspaceInvitationsService', () => {
       findMany: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
     };
     workspaceMembership: {
       findUnique: jest.Mock;
@@ -111,6 +113,7 @@ describe('WorkspaceInvitationsService', () => {
         findMany: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       workspaceMembership: {
         findUnique: jest.fn(),
@@ -239,8 +242,12 @@ describe('WorkspaceInvitationsService', () => {
     expect(createArgs?.data.email).toBe('invitee@example.com');
     expect(createArgs?.data.role).toBe('member');
     expect(createArgs?.data.invitedByUserId).toBe('owner-1');
-    expect(createArgs?.data.tokenHash).toEqual(expect.any(String));
+    expect(createArgs?.data.tokenHash).toBe(
+      createHash('sha256').update(result.token).digest('hex'),
+    );
     expect(createArgs?.data.expiresAt).toBeInstanceOf(Date);
+    expect(createArgs?.data.expiresAt).toEqual(new Date('2026-04-25T00:00:00.000Z'));
+    expect(createArgs?.data.expiresAt.getTime()).toBeGreaterThan(suiteNow.getTime());
     expect(createArgs?.select).toEqual({
       id: true,
       workspaceId: true,
@@ -295,6 +302,38 @@ describe('WorkspaceInvitationsService', () => {
     await expect(
       service.inviteMember(workspaceId, 'invitee@example.com', 'member', 'owner-1'),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('revokes expired pending invites before checking for a duplicate', async () => {
+    prisma.workspaceInvitation.findFirst.mockResolvedValueOnce(null);
+    prisma.workspaceInvitation.create.mockResolvedValueOnce({
+      id: invitationId,
+      workspaceId,
+      email: 'invitee@example.com',
+      role: PrismaWorkspaceRole.member,
+      invitedByUserId: 'owner-1',
+      expiresAt: new Date('2026-04-25T00:00:00.000Z'),
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      acceptedAt: null,
+      revokedAt: null,
+    });
+
+    await service.inviteMember(workspaceId, 'invitee@example.com', 'member', 'owner-1');
+
+    expect(prisma.workspaceInvitation.updateMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId,
+        email: 'invitee@example.com',
+        acceptedAt: null,
+        revokedAt: null,
+        expiresAt: {
+          lte: new Date('2026-03-26T00:00:00.000Z'),
+        },
+      },
+      data: {
+        revokedAt: new Date('2026-03-26T00:00:00.000Z'),
+      },
+    });
   });
 
   it('normalizes the email before checking for existing active invites and storing it', async () => {
@@ -378,6 +417,9 @@ describe('WorkspaceInvitationsService', () => {
       const createArgs = getCreateInvitationArgs(prisma.workspaceInvitation.create);
       expect(createArgs).toBeDefined();
       expect(createArgs?.data.expiresAt).toEqual(new Date('2026-05-10T00:00:00.000Z'));
+      expect(createArgs?.data.expiresAt.getTime() - Date.now()).toBe(
+        45 * 24 * 60 * 60 * 1000,
+      );
       expect(createArgs?.select).toEqual({
         id: true,
         workspaceId: true,

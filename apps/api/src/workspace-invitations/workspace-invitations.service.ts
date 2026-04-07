@@ -88,6 +88,9 @@ interface WorkspaceInvitationRepository {
   update<T extends Prisma.WorkspaceInvitationUpdateArgs>(
     args: Prisma.SelectSubset<T, Prisma.WorkspaceInvitationUpdateArgs>,
   ): Promise<Prisma.WorkspaceInvitationGetPayload<T>>;
+  updateMany<T extends Prisma.WorkspaceInvitationUpdateManyArgs>(
+    args: Prisma.SelectSubset<T, Prisma.WorkspaceInvitationUpdateManyArgs>,
+  ): Promise<Prisma.BatchPayload>;
 }
 
 interface WorkspaceMembershipRepository {
@@ -108,6 +111,8 @@ type AcceptInvitationLookup =
   | {
       token: string;
     };
+
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function toInvitationDatabase(db: Prisma.TransactionClient | PrismaService): InvitationDatabase {
   return {
@@ -136,6 +141,7 @@ export class WorkspaceInvitationsService {
     return this.prisma.$transaction(async (tx) => {
       const db = toInvitationDatabase(tx);
 
+      await this.revokeExpiredPendingInvitations(workspaceId, normalizedEmail, db);
       await this.ensureNoActiveInvitation(workspaceId, normalizedEmail, db);
       const token = createInvitationToken();
       const invitation = await this.createInvitation(
@@ -375,6 +381,29 @@ export class WorkspaceInvitationsService {
     }
   }
 
+  private async revokeExpiredPendingInvitations(
+    workspaceId: string,
+    email: string,
+    db: InvitationDatabase,
+  ): Promise<void> {
+    const now = new Date();
+
+    await db.workspaceInvitation.updateMany({
+      where: {
+        workspaceId,
+        email,
+        acceptedAt: null,
+        revokedAt: null,
+        expiresAt: {
+          lte: now,
+        },
+      },
+      data: {
+        revokedAt: now,
+      },
+    });
+  }
+
   private toWorkspaceSummary(workspace: WorkspaceSummaryRecord): WorkspaceSummary {
     return {
       id: workspace.id,
@@ -397,9 +426,7 @@ export class WorkspaceInvitationsService {
 
   private createInvitationExpiresAt(from = new Date()): Date {
     const inviteTtlDays = this.configService.get<number>('INVITE_TTL_DAYS') ?? 30;
-    const expiresAt = new Date(from);
-    expiresAt.setDate(expiresAt.getDate() + inviteTtlDays);
-    return expiresAt;
+    return new Date(from.getTime() + inviteTtlDays * MILLISECONDS_PER_DAY);
   }
 
   private toPublicStatus(
