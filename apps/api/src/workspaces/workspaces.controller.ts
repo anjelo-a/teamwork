@@ -138,6 +138,16 @@ export class WorkspacesController {
     return this.workspaceInvitationsService.regenerateWorkspaceShareLink(workspaceId, user.id);
   }
 
+  @Delete(':workspaceId/share-link')
+  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
+  @WorkspaceRoles('owner')
+  async disableWorkspaceShareLink(
+    @CurrentUser() user: RequestUser,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+  ) {
+    return this.workspaceInvitationsService.disableWorkspaceShareLink(workspaceId, user.id);
+  }
+
   @Delete(':workspaceId/members/:userId')
   @UseGuards(WorkspaceMemberGuard)
   async removeMember(

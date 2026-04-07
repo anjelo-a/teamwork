@@ -40,13 +40,15 @@ describe('Workspace member DTOs', () => {
     );
   });
 
-  it('accepts only owner and member when updating a workspace share link role', async () => {
-    const ownerDto = plainToInstance(UpdateWorkspaceShareLinkDto, { role: 'owner' });
+  it('accepts only member when updating a workspace share link role', async () => {
     const memberDto = plainToInstance(UpdateWorkspaceShareLinkDto, { role: 'member' });
+    const ownerDto = plainToInstance(UpdateWorkspaceShareLinkDto, { role: 'owner' });
     const invalidDto = plainToInstance(UpdateWorkspaceShareLinkDto, { role: 'viewer' });
 
-    await expect(validate(ownerDto)).resolves.toHaveLength(0);
     await expect(validate(memberDto)).resolves.toHaveLength(0);
+    await expect(validate(ownerDto)).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ property: 'role' })]),
+    );
     await expect(validate(invalidDto)).resolves.toEqual(
       expect.arrayContaining([expect.objectContaining({ property: 'role' })]),
     );

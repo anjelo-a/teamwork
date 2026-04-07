@@ -2,6 +2,7 @@ const DEFAULT_DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/team
 const DEFAULT_JWT_SECRET = 'teamwork-dev-secret-change-me';
 const DEFAULT_APP_URL = 'http://localhost:3000';
 const DEFAULT_INVITE_TTL_DAYS = 30;
+const DEFAULT_SHARE_LINK_TTL_DAYS = 14;
 const VALID_NODE_ENV_VALUES = ['development', 'test', 'production'] as const;
 type NodeEnvironment = (typeof VALID_NODE_ENV_VALUES)[number];
 
@@ -17,6 +18,8 @@ export function validateEnvironment(config: Record<string, unknown>): Record<str
     APP_URL: appUrl,
     INVITE_BASE_URL: readUrl(config['INVITE_BASE_URL']) ?? appUrl,
     INVITE_TTL_DAYS: readPositiveInteger(config['INVITE_TTL_DAYS']) ?? DEFAULT_INVITE_TTL_DAYS,
+    SHARE_LINK_TTL_DAYS:
+      readPositiveInteger(config['SHARE_LINK_TTL_DAYS']) ?? DEFAULT_SHARE_LINK_TTL_DAYS,
     PORT: Number.parseInt(readString(config['PORT']) ?? '3000', 10),
   };
 }

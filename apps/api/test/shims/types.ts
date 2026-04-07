@@ -4,6 +4,7 @@ export type WorkspaceRole = 'owner' | 'member';
 export type TaskStatus = 'todo' | 'in_progress' | 'done';
 export type TaskDueBucket = 'past_due' | 'today' | 'upcoming' | 'no_date';
 export type TaskAssignmentFilter = 'everyone' | 'me' | 'others' | 'unassigned';
+export type WorkspaceShareLinkStatus = 'active' | 'revoked' | 'expired';
 
 export interface UserSummary {
   id: ID;
@@ -60,15 +61,22 @@ export interface WorkspaceShareLinkSummary {
   workspaceId: ID;
   role: WorkspaceRole;
   createdByUserId: ID;
+  expiresAt: string;
+  revokedAt: string | null;
+  lastUsedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  url: string;
+  status: WorkspaceShareLinkStatus;
+  url: string | null;
 }
 
 export interface PublicWorkspaceShareLinkSummary {
   id: ID;
   workspaceId: ID;
   role: WorkspaceRole;
+  expiresAt: string;
+  revokedAt: string | null;
+  lastUsedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,6 +84,7 @@ export interface PublicWorkspaceShareLinkSummary {
 export interface PublicWorkspaceShareLinkLookup {
   shareLink: PublicWorkspaceShareLinkSummary;
   workspace: WorkspaceSummary;
+  status: WorkspaceShareLinkStatus;
 }
 
 export interface WorkspaceSummary {
