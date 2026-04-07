@@ -2,6 +2,8 @@ import { AuthLayout } from '@/components/auth/auth-layout';
 import { AuthRedirectGuard } from '@/components/auth/auth-redirect-guard';
 import { SignUpForm } from '@/components/auth/sign-up-form';
 
+export const dynamic = 'force-dynamic';
+
 export default function SignUpPage({
   searchParams,
 }: {
