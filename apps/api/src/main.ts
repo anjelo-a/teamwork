@@ -35,7 +35,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(process.env['PORT'] ?? 3000);
 }
 
-function readAllowedOrigins(): string[] {
+export function readAllowedOrigins(): string[] {
   const configuredOrigins = process.env['CORS_ALLOWED_ORIGINS']?.trim();
   const appUrl = process.env['APP_URL']?.trim();
   const inviteBaseUrl = process.env['INVITE_BASE_URL']?.trim();
@@ -46,7 +46,9 @@ function readAllowedOrigins(): string[] {
     inviteBaseUrl,
   ];
 
-  if (process.env['NODE_ENV'] !== 'production') {
+  const nodeEnv = process.env['NODE_ENV'];
+
+  if (nodeEnv === 'development' || nodeEnv === 'test') {
     explicitOrigins.push('http://localhost:3001', 'http://127.0.0.1:3001');
   }
 
@@ -64,18 +66,34 @@ function splitOrigins(configuredOrigins: string | undefined): string[] {
     .filter((origin) => origin.length > 0);
 }
 
-function normalizeOrigin(origin: string | undefined): string | null {
+export function normalizeOrigin(origin: string | undefined): string | null {
   if (!origin) {
     return null;
   }
 
-  return origin.trim().replace(/\/+$/, '');
+  const trimmedOrigin = origin.trim();
+
+  if (trimmedOrigin.length === 0) {
+    return null;
+  }
+
+  if (trimmedOrigin === 'null') {
+    return 'null';
+  }
+
+  try {
+    return new URL(trimmedOrigin).origin;
+  } catch {
+    return trimmedOrigin.replace(/\/+$/, '');
+  }
 }
 
 function isNonEmptyOrigin(origin: string | null): origin is string {
   return Boolean(origin);
 }
 
-void bootstrap().catch((error: unknown) => {
-  throw error;
-});
+if (require.main === module) {
+  void bootstrap().catch((error: unknown) => {
+    throw error;
+  });
+}
