@@ -184,17 +184,6 @@ export function InvitationsPage({
 
   return (
     <>
-      <section>
-        <div>
-          <h2 className="text-[1.82rem] font-semibold tracking-tight text-foreground">
-            Invitations
-          </h2>
-          <p className="mt-1.5 text-[0.98rem] leading-6 text-muted">
-            Invite new members to your workspace
-          </p>
-        </div>
-      </section>
-
       {successResult ? (
         <FormMessage
           tone="info"
@@ -207,7 +196,7 @@ export function InvitationsPage({
           <div className="flex items-start justify-between gap-6 px-7 py-6">
             <div className="min-w-0">
               <h3 className="text-[1.18rem] font-semibold tracking-tight text-foreground">
-                Invite Member
+                Invite a Member
               </h3>
               <p className="mt-2 max-w-2xl text-[0.92rem] leading-6 text-muted">
                 Invite teammates by email or use the workspace share link available below.
@@ -222,7 +211,7 @@ export function InvitationsPage({
               }}
               className="shrink-0"
             >
-              Invite Member
+              Send Invite
             </AppButton>
           </div>
 
@@ -306,10 +295,16 @@ export function InvitationsPage({
                     <span className="text-[0.82rem] font-semibold uppercase tracking-[0.18em] text-muted">
                       Link Status
                     </span>
-                    <p className="mt-2 text-[0.94rem] font-medium text-foreground">
+                    <p className="mt-2 flex items-center gap-2 text-[0.94rem] font-medium text-foreground">
+                      <StatusDot tone={shareLink.status} />
                       {formatShareLinkStatus(shareLink.status)}
                     </p>
                   </div>
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-4 text-[0.8rem] text-muted">
+                  <StatusLegendItem tone="active" label="Active" />
+                  <StatusLegendItem tone="revoked" label="Disabled" />
+                  <StatusLegendItem tone="expired" label="Expired" />
                 </div>
 
                 {shareLink.url ? (
@@ -423,14 +418,6 @@ export function InvitationsPage({
 export function InvitationsPageSkeleton() {
   return (
     <div className="flex flex-col gap-5">
-      <section className="flex items-start justify-between gap-5">
-        <div>
-          <div className="h-9 w-40 animate-pulse rounded-xl bg-black/10" />
-          <div className="mt-2.5 h-5 w-72 animate-pulse rounded-xl bg-black/5" />
-        </div>
-        <div className="h-10 w-32 animate-pulse rounded-[0.85rem] bg-black/10" />
-      </section>
-
       <section className="rounded-[1.5rem] border border-line bg-surface-strong shadow-[0_18px_38px_rgba(15,23,42,0.06)]">
         <div className="px-7 py-4.5">
           <div className="flex items-center justify-between gap-6">
@@ -517,6 +504,37 @@ function formatShareLinkStatus(status: WorkspaceShareLinkSummary['status']): str
   }
 
   return 'Active';
+}
+
+function StatusLegendItem({
+  tone,
+  label,
+}: {
+  tone: WorkspaceShareLinkSummary['status'];
+  label: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <StatusDot tone={tone} />
+      {label}
+    </span>
+  );
+}
+
+function StatusDot({
+  tone,
+}: {
+  tone: WorkspaceShareLinkSummary['status'];
+}) {
+  const colorClassName =
+    tone === 'active' ? 'bg-emerald-500' : tone === 'revoked' ? 'bg-rose-500' : 'bg-violet-500';
+
+  return (
+    <span
+      className={`inline-flex h-2.5 w-2.5 rounded-full ${colorClassName}`}
+      aria-hidden="true"
+    />
+  );
 }
 
 function InviteIcon() {

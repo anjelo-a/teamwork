@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@fontsource-variable/space-grotesk": "^5.2.10",
     "@teamwork/types": "workspace:*",
     "next": "16.2.1",
     "react": "19.2.4",

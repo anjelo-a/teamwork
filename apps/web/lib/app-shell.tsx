@@ -169,8 +169,8 @@ export function deriveShellRouteContext(
     return {
       definition: {
         key: 'invitations',
-        title: 'Invitations',
-        subtitle: `Invite new members to ${workspaceName} and manage pending invites.`,
+        title: 'Invite a Member',
+        subtitle: 'Workspace invitations and share-link access in one place.',
         eyebrow: 'Workspace invitations',
       },
       currentWorkspace,
