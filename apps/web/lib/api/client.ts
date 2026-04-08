@@ -87,6 +87,18 @@ export async function register(input: {
   });
 }
 
+export async function createWorkspace(
+  accessToken: string,
+  input: { name: string },
+): Promise<WorkspaceResponse> {
+  return apiRequest('/workspaces', {
+    accessToken,
+    method: 'POST',
+    body: JSON.stringify(input),
+    parser: parseWorkspaceResponse,
+  });
+}
+
 export async function getWorkspaceDetails(
   workspaceId: string,
   accessToken: string,

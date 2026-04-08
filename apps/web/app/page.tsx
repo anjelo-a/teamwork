@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageStatusCard } from '@/components/app-shell/page-state';
+import { CreateWorkspaceModal } from '@/components/workspaces/create-workspace-modal';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
 import { getWorkspaceBoardHref } from '@/lib/app-shell';
 
 export default function HomePage() {
   const router = useRouter();
   const { status, auth, errorMessage, refreshSession } = useAuthSession();
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -43,13 +45,28 @@ export default function HomePage() {
 
   if (status === 'authenticated' && auth.workspaces.length === 0) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6 py-10">
-        <PageStatusCard
-          title="No workspaces available"
-          description="Your account is authenticated, but there is no workspace to open yet."
-          tone="default"
+      <>
+        <main className="flex min-h-screen items-center justify-center px-6 py-10">
+          <PageStatusCard
+            title="No workspaces available"
+            description="Your account is authenticated, but there is no workspace to open yet."
+            tone="default"
+            actionLabel="Create workspace"
+            onAction={() => {
+              setIsCreateWorkspaceOpen(true);
+            }}
+          />
+        </main>
+        <CreateWorkspaceModal
+          open={isCreateWorkspaceOpen}
+          onClose={() => {
+            setIsCreateWorkspaceOpen(false);
+          }}
+          onCreated={(workspaceId) => {
+            router.replace(getWorkspaceBoardHref(workspaceId));
+          }}
         />
-      </main>
+      </>
     );
   }
 

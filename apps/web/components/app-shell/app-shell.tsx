@@ -1,13 +1,14 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AppShellHeader } from '@/components/app-shell/header';
 import { PageStatusCard } from '@/components/app-shell/page-state';
 import { SidebarNavigation } from '@/components/app-shell/sidebar';
+import { CreateWorkspaceModal } from '@/components/workspaces/create-workspace-modal';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
-import { deriveShellRouteContext } from '@/lib/app-shell';
+import { deriveShellRouteContext, getWorkspaceBoardHref } from '@/lib/app-shell';
 
 interface AppShellProps {
   children: ReactNode;
@@ -17,6 +18,7 @@ export function AppShell({ children }: AppShellProps): ReactNode {
   const pathname = usePathname();
   const router = useRouter();
   const { status, auth, errorMessage, refreshSession } = useAuthSession();
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -55,13 +57,28 @@ export function AppShell({ children }: AppShellProps): ReactNode {
 
   if (auth.workspaces.length === 0) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6 py-10">
-        <PageStatusCard
-          title="No workspaces available"
-          description="Your account is active, but there is no workspace available yet."
-          tone="default"
+      <>
+        <main className="flex min-h-screen items-center justify-center px-6 py-10">
+          <PageStatusCard
+            title="No workspaces available"
+            description="Your account is active, but there is no workspace available yet."
+            tone="default"
+            actionLabel="Create workspace"
+            onAction={() => {
+              setIsCreateWorkspaceOpen(true);
+            }}
+          />
+        </main>
+        <CreateWorkspaceModal
+          open={isCreateWorkspaceOpen}
+          onClose={() => {
+            setIsCreateWorkspaceOpen(false);
+          }}
+          onCreated={(workspaceId) => {
+            router.replace(getWorkspaceBoardHref(workspaceId));
+          }}
         />
-      </main>
+      </>
     );
   }
 

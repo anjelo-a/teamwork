@@ -6,10 +6,12 @@ import { useRouter } from 'next/navigation';
 import type { AuthenticatedWorkspace } from '@teamwork/types';
 import {
   getSidebarNavigationItems,
+  getWorkspaceScopedHref,
   matchesShellHref,
   type SidebarNavigationItem,
 } from '@/lib/app-shell';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
+import { CreateWorkspaceModal } from '@/components/workspaces/create-workspace-modal';
 
 interface SidebarNavigationProps {
   currentPath: string;
@@ -23,8 +25,12 @@ export function SidebarNavigation({
   const router = useRouter();
   const { auth, clearSession } = useAuthSession();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const items = getSidebarNavigationItems(currentWorkspace?.id ?? null);
+  const selectedWorkspaceId = currentWorkspace?.id ?? auth.workspaces[0]?.id ?? null;
+  const currentWorkspaceName = currentWorkspace?.name ?? auth.workspaces[0]?.name ?? 'Workspace';
+  const workspaceHeadingClassName = getWorkspaceHeadingClassName(currentWorkspaceName);
+  const items = getSidebarNavigationItems(selectedWorkspaceId);
   const userName = auth.user.displayName.trim() || auth.user.email.trim() || 'User';
   const userEmail = auth.user.email.trim();
   const userInitials = useMemo(() => getInitials(userName, userEmail), [userEmail, userName]);
@@ -50,72 +56,132 @@ export function SidebarNavigation({
   }, [menuOpen]);
 
   return (
-    <aside className="shell-panel hidden w-[238px] shrink-0 flex-col rounded-[1.45rem] border border-line bg-surface px-3.5 py-[1.125rem] shadow-[var(--shadow)] lg:flex">
-      <div className="px-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted">TeamWork</p>
-        <h2 className="mt-2.5 text-[1.48rem] font-semibold tracking-tight text-foreground">
-          {currentWorkspace?.name ?? 'Workspace'}
-        </h2>
-        <p className="mt-2.5 text-[0.92rem] leading-6 text-muted">
-          Shared navigation and page framing for the authenticated app.
-        </p>
-      </div>
-
-      <nav className="mt-6 flex flex-1 flex-col gap-1.5">
-        {items.map((item) => (
-          <SidebarLink
-            key={item.href}
-            item={item}
-            isActive={matchesShellHref(item.href, currentPath)}
-          />
-        ))}
-      </nav>
-
-      <div ref={menuRef} className="relative mt-4 pt-4">
-        <button
-          type="button"
-          onClick={() => {
-            setMenuOpen((currentValue) => !currentValue);
-          }}
-          className="flex w-full items-center gap-3 rounded-[1rem] border border-line bg-surface-muted px-3 py-3 text-left transition-colors hover:border-accent/25 hover:bg-accent-soft/45"
-        >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold uppercase tracking-[0.08em] text-white">
-            {userInitials}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[0.94rem] font-semibold text-foreground">
-              {userName}
-            </span>
-            <span className="block truncate text-xs text-muted">
-              {userEmail || 'TeamWork account'}
-            </span>
-          </span>
-          <span
-            className={`text-muted transition-transform ${menuOpen ? 'rotate-180' : ''}`}
-            aria-hidden="true"
-          >
-            <ChevronDownIcon />
-          </span>
-        </button>
-
-        {menuOpen ? (
-          <div className="absolute inset-x-0 bottom-[calc(100%+0.55rem)] rounded-[1rem] border border-line bg-surface p-2 shadow-[var(--shadow)]">
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                clearSession();
-                router.replace('/auth-required');
+    <>
+      <aside className="shell-panel hidden w-[238px] shrink-0 flex-col rounded-[1.45rem] border border-line bg-surface px-3.5 py-[1.125rem] shadow-[var(--shadow)] lg:flex">
+        <div className="px-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted">TeamWork</p>
+          <div className="mt-2.5 h-[3.5rem]">
+            <h2
+              title={currentWorkspaceName}
+              className={`overflow-hidden font-semibold tracking-tight text-foreground ${workspaceHeadingClassName}`}
+              style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
               }}
-              className="flex w-full items-center gap-3 rounded-[0.85rem] px-3 py-2.5 text-left text-[0.92rem] font-semibold text-foreground transition-colors hover:bg-surface-muted"
             >
-              <LogoutIcon />
-              Log out
-            </button>
+              {currentWorkspaceName}
+            </h2>
           </div>
-        ) : null}
-      </div>
-    </aside>
+
+          <div className="mt-4 rounded-[0.95rem] border border-line bg-surface-muted/70 p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-muted">
+                Workspace
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCreateWorkspaceOpen(true);
+                }}
+                className="rounded-[0.7rem] border border-line bg-surface-strong px-2.5 py-1 text-[0.76rem] font-semibold text-foreground transition-colors hover:border-accent/35 hover:bg-accent-soft/40"
+              >
+                New
+              </button>
+            </div>
+
+            <label htmlFor="workspace-switcher" className="sr-only">
+              Switch workspace
+            </label>
+            <select
+              id="workspace-switcher"
+              value={selectedWorkspaceId ?? ''}
+              onChange={(event) => {
+                const nextWorkspaceId = event.target.value;
+
+                if (!nextWorkspaceId || nextWorkspaceId === selectedWorkspaceId) {
+                  return;
+                }
+
+                router.push(getWorkspaceScopedHref(currentPath, nextWorkspaceId));
+              }}
+              className="mt-2 w-full rounded-[0.8rem] border border-line bg-surface-strong px-2.5 py-2 text-[0.85rem] font-semibold text-foreground outline-none transition-colors focus:border-accent"
+            >
+              {auth.workspaces.map((workspace) => (
+                <option key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <nav className="mt-6 flex flex-1 flex-col gap-1.5">
+          {items.map((item) => (
+            <SidebarLink
+              key={item.href}
+              item={item}
+              isActive={matchesShellHref(item.href, currentPath)}
+            />
+          ))}
+        </nav>
+
+        <div ref={menuRef} className="relative mt-4 pt-4">
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen((currentValue) => !currentValue);
+            }}
+            className="flex w-full items-center gap-3 rounded-[1rem] border border-line bg-surface-muted px-3 py-3 text-left transition-colors hover:border-accent/25 hover:bg-accent-soft/45"
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold uppercase tracking-[0.08em] text-white">
+              {userInitials}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[0.94rem] font-semibold text-foreground">
+                {userName}
+              </span>
+              <span className="block truncate text-xs text-muted">
+                {userEmail || 'TeamWork account'}
+              </span>
+            </span>
+            <span
+              className={`text-muted transition-transform ${menuOpen ? 'rotate-180' : ''}`}
+              aria-hidden="true"
+            >
+              <ChevronDownIcon />
+            </span>
+          </button>
+
+          {menuOpen ? (
+            <div className="absolute inset-x-0 bottom-[calc(100%+0.55rem)] rounded-[1rem] border border-line bg-surface p-2 shadow-[var(--shadow)]">
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  clearSession();
+                  router.replace('/auth-required');
+                }}
+                className="flex w-full items-center gap-3 rounded-[0.85rem] px-3 py-2.5 text-left text-[0.92rem] font-semibold text-foreground transition-colors hover:bg-surface-muted"
+              >
+                <LogoutIcon />
+                Log out
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </aside>
+
+      <CreateWorkspaceModal
+        open={isCreateWorkspaceOpen}
+        onClose={() => {
+          setIsCreateWorkspaceOpen(false);
+        }}
+        onCreated={(workspaceId) => {
+          router.push(getWorkspaceScopedHref(currentPath, workspaceId));
+        }}
+      />
+    </>
   );
 }
 
@@ -171,6 +237,24 @@ function getInitials(displayName: string, email: string): string {
     .slice(0, 2)
     .map((word) => word[0]?.toUpperCase() ?? '')
     .join('');
+}
+
+function getWorkspaceHeadingClassName(workspaceName: string): string {
+  const length = workspaceName.trim().length;
+
+  if (length >= 50) {
+    return 'text-[1.02rem] leading-[1.2rem]';
+  }
+
+  if (length >= 36) {
+    return 'text-[1.14rem] leading-[1.32rem]';
+  }
+
+  if (length >= 24) {
+    return 'text-[1.28rem] leading-[1.48rem]';
+  }
+
+  return 'text-[1.48rem] leading-[1.72rem]';
 }
 
 function ChevronDownIcon() {

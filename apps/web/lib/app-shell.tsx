@@ -56,6 +56,22 @@ export function getInvitationInboxHref(): string {
   return '/invitation-inbox';
 }
 
+export function getWorkspaceScopedHref(pathname: string, workspaceId: string): string {
+  if (pathname.endsWith('/members')) {
+    return getWorkspaceMembersHref(workspaceId);
+  }
+
+  if (pathname.endsWith('/invitations')) {
+    return getWorkspaceInvitationsHref(workspaceId);
+  }
+
+  if (pathname.endsWith('/calendar')) {
+    return getWorkspaceCalendarHref(workspaceId);
+  }
+
+  return getWorkspaceBoardHref(workspaceId);
+}
+
 export function getSidebarNavigationItems(
   workspaceId: string | null,
 ): SidebarNavigationItem[] {
