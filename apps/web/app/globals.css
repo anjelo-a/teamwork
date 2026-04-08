@@ -1,6 +1,24 @@
 @import '../node_modules/tailwindcss/index.css';
 
 :root {
+  --font-space-grotesk:
+    'Space Grotesk Variable',
+    'Space Grotesk',
+    'Avenir Next',
+    'Avenir',
+    'Trebuchet MS',
+    'Segoe UI',
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  --font-geist-mono:
+    'SFMono-Regular',
+    'Menlo',
+    'Monaco',
+    'Consolas',
+    'Liberation Mono',
+    'Courier New',
+    monospace;
   --background: #ffffff;
   --foreground: #000000;
   --surface: #ffffff;
