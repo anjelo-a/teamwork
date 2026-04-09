@@ -45,6 +45,9 @@ describe('TasksService', () => {
       update: jest.Mock;
       delete: jest.Mock;
     };
+    user: {
+      findMany: jest.Mock;
+    };
     workspaceMembership: {
       findUnique: jest.Mock;
     };
@@ -74,6 +77,9 @@ describe('TasksService', () => {
         update: jest.fn(),
         delete: jest.fn(),
       },
+      user: {
+        findMany: jest.fn(),
+      },
       workspaceMembership: {
         findUnique: jest.fn(),
       },
@@ -84,6 +90,26 @@ describe('TasksService', () => {
     usersService = {
       toSummary: jest.fn((user: UserRecord): UserSummary => toUserSummary(user)),
     };
+    const defaultUserRecords: UserRecord[] = [
+      {
+        id: userId,
+        email: 'owner@example.com',
+        displayName: 'Owner',
+        createdAt: new Date('2026-03-27T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-27T00:00:00.000Z'),
+      },
+      {
+        id: otherUserId,
+        email: 'member@example.com',
+        displayName: 'Member',
+        createdAt: new Date('2026-03-27T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-27T00:00:00.000Z'),
+      },
+    ];
+    prisma.user.findMany.mockImplementation((args?: { where?: { id?: { in?: string[] } } }) => {
+      const ids = args?.where?.id?.in ?? [];
+      return Promise.resolve(defaultUserRecords.filter((user) => ids.includes(user.id)));
+    });
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -181,7 +207,7 @@ describe('TasksService', () => {
       currentUserId: userId,
     });
 
-    expect(membershipsService.requireMembership).toHaveBeenCalledWith(workspaceId, userId);
+    expect(membershipsService.requireMembership).not.toHaveBeenCalled();
     expect(prisma.task.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { workspaceId },
@@ -621,7 +647,7 @@ describe('TasksService', () => {
       }),
     );
 
-    const result = await service.updateTaskStatus(workspaceId, taskId, 'done', userId);
+    const result = await service.updateTaskStatus(workspaceId, taskId, 'done');
 
     expect(result.status).toBe('done');
     expect(prisma.task.update).toHaveBeenCalledWith(
@@ -635,34 +661,33 @@ describe('TasksService', () => {
     prisma.task.findFirst.mockResolvedValueOnce(null);
 
     await expect(
-      service.updateTaskStatus(otherWorkspaceId, taskId, 'done', userId),
+      service.updateTaskStatus(otherWorkspaceId, taskId, 'done'),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.task.update).not.toHaveBeenCalled();
   });
 
-  it('propagates workspace membership failures for non-members', async () => {
-    membershipsService.requireMembership.mockRejectedValueOnce(
-      new ForbiddenException('You do not belong to this workspace.'),
-    );
+  it('does not perform redundant membership checks for workspace list queries', async () => {
+    prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
 
-    await expect(
-      service.listTasksForWorkspace({
-        workspaceId,
-        currentUserId: userId,
-      }),
-    ).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+    });
+
+    expect(membershipsService.requireMembership).not.toHaveBeenCalled();
   });
 
-  it('blocks non-members from updating task status', async () => {
-    membershipsService.requireMembership.mockRejectedValueOnce(
-      new ForbiddenException('You do not belong to this workspace.'),
+  it('does not perform redundant membership checks when updating task status', async () => {
+    prisma.task.findFirst.mockResolvedValueOnce(buildTaskRecord());
+    prisma.task.update.mockResolvedValueOnce(
+      buildTaskRecord({
+        status: PrismaTaskStatus.done,
+      }),
     );
 
-    await expect(
-      service.updateTaskStatus(workspaceId, taskId, 'done', userId),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    await service.updateTaskStatus(workspaceId, taskId, 'done');
+
+    expect(membershipsService.requireMembership).not.toHaveBeenCalled();
   });
 
   it('blocks non-members from updating task assignee', async () => {

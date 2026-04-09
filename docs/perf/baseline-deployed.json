@@ -1,4 +1,162 @@
 {
-  "status": "pending",
-  "message": "Generate with RUN_LABEL=baseline ENV_LABEL=deployed pnpm perf:run"
+  "capturedAt": "2026-04-09T15:14:01.978Z",
+  "runLabel": "baseline",
+  "environmentLabel": "deployed",
+  "apiBaseUrl": "https://teamwork-x0bz.onrender.com",
+  "webBaseUrl": "https://teamwork-lovat.vercel.app",
+  "fixture": {
+    "workspaceId": "30938dff-da66-459a-b89c-e8882823e396",
+    "sampleTaskId": "d954fe4b-df5c-49d0-ac84-8a6ef0e6b5b2",
+    "taskPrefix": "[bench]",
+    "targetTaskCount": 200,
+    "benchmarkTaskCount": 199,
+    "createdTaskCount": 1
+  },
+  "backend": {
+    "capturedAt": "2026-04-09T15:13:54.727Z",
+    "apiBaseUrl": "https://teamwork-x0bz.onrender.com",
+    "config": {
+      "connections": 2,
+      "durationSeconds": 8,
+      "warmupSeconds": 2
+    },
+    "endpoints": [
+      {
+        "id": "tasks-inbox",
+        "label": "GET /tasks",
+        "method": "GET",
+        "path": "/tasks",
+        "latencyMs": {
+          "avg": 212.63,
+          "p50": 192,
+          "p95": 457,
+          "p99": 569
+        },
+        "requestsPerSecond": 9.25,
+        "totalRequests": 74,
+        "errors": 0,
+        "timeouts": 0,
+        "non2xx": 0,
+        "bytesPerSecond": 1098144
+      },
+      {
+        "id": "workspace-tasks",
+        "label": "GET /workspaces/:workspaceId/tasks",
+        "method": "GET",
+        "path": "/workspaces/30938dff-da66-459a-b89c-e8882823e396/tasks",
+        "latencyMs": {
+          "avg": 243.74,
+          "p50": 201,
+          "p95": 503.33,
+          "p99": 633
+        },
+        "requestsPerSecond": 8.13,
+        "totalRequests": 65,
+        "errors": 0,
+        "timeouts": 0,
+        "non2xx": 0,
+        "bytesPerSecond": 964736
+      },
+      {
+        "id": "update-status",
+        "label": "PATCH /workspaces/:workspaceId/tasks/:taskId/status",
+        "method": "PATCH",
+        "path": "/workspaces/30938dff-da66-459a-b89c-e8882823e396/tasks/d954fe4b-df5c-49d0-ac84-8a6ef0e6b5b2/status",
+        "latencyMs": {
+          "avg": 150.92,
+          "p50": 130,
+          "p95": 279,
+          "p99": 415
+        },
+        "requestsPerSecond": 13.13,
+        "totalRequests": 105,
+        "errors": 0,
+        "timeouts": 0,
+        "non2xx": 0,
+        "bytesPerSecond": 15266.5
+      }
+    ]
+  },
+  "frontend": {
+    "capturedAt": "2026-04-09T15:14:01.978Z",
+    "webBaseUrl": "https://teamwork-lovat.vercel.app",
+    "boardUrl": "https://teamwork-lovat.vercel.app/workspaces/30938dff-da66-459a-b89c-e8882823e396/board",
+    "config": {
+      "runs": 5,
+      "timeoutMs": 45000
+    },
+    "successfulRuns": 5,
+    "failedRuns": 0,
+    "metrics": {
+      "boardReadyMs": {
+        "count": 5,
+        "min": 1270.39,
+        "max": 1434.68,
+        "avg": 1332.48,
+        "p50": 1305.25,
+        "p95": 1418.6,
+        "p99": 1431.46
+      },
+      "domContentLoadedMs": {
+        "count": 5,
+        "min": 448.2,
+        "max": 566.4,
+        "avg": 496.52,
+        "p50": 466.3,
+        "p95": 561.46,
+        "p99": 565.41
+      },
+      "loadEventMs": {
+        "count": 5,
+        "min": 500.1,
+        "max": 686.3,
+        "avg": 562.96,
+        "p50": 512.1,
+        "p95": 671.48,
+        "p99": 683.34
+      }
+    },
+    "runs": [
+      {
+        "run": 1,
+        "success": true,
+        "boardReadyMs": 1434.68,
+        "domContentLoadedMs": 566.4,
+        "loadEventMs": 612.2,
+        "responseStartMs": 156.1
+      },
+      {
+        "run": 2,
+        "success": true,
+        "boardReadyMs": 1297.79,
+        "domContentLoadedMs": 466.3,
+        "loadEventMs": 512.1,
+        "responseStartMs": 131.7
+      },
+      {
+        "run": 3,
+        "success": true,
+        "boardReadyMs": 1270.39,
+        "domContentLoadedMs": 448.2,
+        "loadEventMs": 500.1,
+        "responseStartMs": 124.9
+      },
+      {
+        "run": 4,
+        "success": true,
+        "boardReadyMs": 1354.27,
+        "domContentLoadedMs": 541.7,
+        "loadEventMs": 686.3,
+        "responseStartMs": 128.8
+      },
+      {
+        "run": 5,
+        "success": true,
+        "boardReadyMs": 1305.25,
+        "domContentLoadedMs": 460,
+        "loadEventMs": 504.1,
+        "responseStartMs": 130.9
+      }
+    ]
+  }
 }

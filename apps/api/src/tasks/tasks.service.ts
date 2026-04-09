@@ -41,8 +41,25 @@ const taskDetailsSelect = {
   },
 } satisfies Prisma.TaskSelect;
 
+const taskListSelect = {
+  id: true,
+  workspaceId: true,
+  title: true,
+  description: true,
+  dueDate: true,
+  status: true,
+  createdByUserId: true,
+  assigneeUserId: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.TaskSelect;
+
 type TaskRecord = Prisma.TaskGetPayload<{
   select: typeof taskDetailsSelect;
+}>;
+
+type TaskListRecord = Prisma.TaskGetPayload<{
+  select: typeof taskListSelect;
 }>;
 
 interface ListTasksForWorkspaceInput extends TaskListFilters {
@@ -131,8 +148,6 @@ export class TasksService {
   }
 
   async listTasksForWorkspace(input: ListTasksForWorkspaceInput): Promise<TaskListResponse> {
-    await this.membershipsService.requireMembership(input.workspaceId, input.currentUserId);
-
     return this.listTasks(input);
   }
 
@@ -153,16 +168,17 @@ export class TasksService {
   private async listTasks(input: ListTasksForUserInput): Promise<TaskListResponse> {
     const tasks = await toTaskDatabase(this.prisma).task.findMany({
       where: this.buildTaskListWhere(input),
-      select: taskDetailsSelect,
+      select: taskListSelect,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: MAX_TASK_LIST_RESULTS + 1,
     });
 
     const hasMore = tasks.length > MAX_TASK_LIST_RESULTS;
     const visibleTasks = hasMore ? tasks.slice(0, MAX_TASK_LIST_RESULTS) : tasks;
+    const usersById = await this.loadTaskListUsers(visibleTasks);
 
     return {
-      tasks: visibleTasks.map((task) => this.toSummary(task)),
+      tasks: visibleTasks.map((task) => this.toSummaryFromListRecord(task, usersById)),
       limit: MAX_TASK_LIST_RESULTS,
       hasMore,
     };
@@ -231,9 +247,7 @@ export class TasksService {
     workspaceId: string,
     taskId: string,
     status: TaskStatus,
-    currentUserId: string,
   ): Promise<TaskDetails> {
-    await this.membershipsService.requireMembership(workspaceId, currentUserId);
     await this.findTaskOrThrow(workspaceId, taskId);
 
     const task = await toTaskDatabase(this.prisma).task.update({
@@ -443,6 +457,65 @@ export class TasksService {
   private getCurrentUtcDate(): Date {
     const now = new Date();
     return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  }
+
+  private async loadTaskListUsers(tasks: TaskListRecord[]): Promise<Map<string, UserSummary>> {
+    const userIds = new Set<string>();
+
+    for (const task of tasks) {
+      userIds.add(task.createdByUserId);
+
+      if (task.assigneeUserId) {
+        userIds.add(task.assigneeUserId);
+      }
+    }
+
+    if (userIds.size === 0) {
+      return new Map();
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        id: {
+          in: Array.from(userIds),
+        },
+      },
+      select: userSummarySelect,
+    });
+
+    return new Map(users.map((user) => [user.id, this.toUserSummary(user)]));
+  }
+
+  private toSummaryFromListRecord(
+    task: TaskListRecord,
+    usersById: Map<string, UserSummary>,
+  ): TaskSummary {
+    const createdByUser = usersById.get(task.createdByUserId);
+
+    if (!createdByUser) {
+      throw new NotFoundException('Task creator not found.');
+    }
+
+    const assigneeUser = task.assigneeUserId ? (usersById.get(task.assigneeUserId) ?? null) : null;
+
+    if (task.assigneeUserId && !assigneeUser) {
+      throw new NotFoundException('Task assignee not found.');
+    }
+
+    return {
+      id: task.id,
+      workspaceId: task.workspaceId,
+      title: task.title,
+      description: task.description,
+      dueDate: serializeTaskDueDate(task.dueDate),
+      status: task.status,
+      createdByUserId: task.createdByUserId,
+      assigneeUserId: task.assigneeUserId,
+      createdAt: task.createdAt.toISOString(),
+      updatedAt: task.updatedAt.toISOString(),
+      createdByUser,
+      assigneeUser,
+    };
   }
 
   private toUserSummary(

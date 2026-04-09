@@ -25,3 +25,7 @@ yarn-error.log*
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# perf artifacts (generated)
+docs/perf/baseline-*.json
+docs/perf/baseline-*.md

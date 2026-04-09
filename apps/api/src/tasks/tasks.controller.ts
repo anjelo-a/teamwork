@@ -99,7 +99,7 @@ export class TasksController {
     @Body() dto: UpdateTaskStatusDto,
   ): Promise<TaskResponse> {
     return {
-      task: await this.tasksService.updateTaskStatus(workspaceId, taskId, dto.status, user.id),
+      task: await this.tasksService.updateTaskStatus(workspaceId, taskId, dto.status),
     };
   }
 

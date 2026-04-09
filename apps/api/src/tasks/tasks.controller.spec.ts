@@ -146,7 +146,6 @@ describe('TasksController', () => {
       workspaceId,
       taskId,
       dto.status,
-      user.id,
     );
   });
 

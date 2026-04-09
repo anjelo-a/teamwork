@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-04-09T13:54:05.841Z",
+  "capturedAt": "2026-04-09T14:47:05.217Z",
   "runLabel": "baseline",
   "environmentLabel": "local",
   "apiBaseUrl": "http://127.0.0.1:3100",
@@ -13,7 +13,7 @@
     "createdTaskCount": 0
   },
   "backend": {
-    "capturedAt": "2026-04-09T13:54:03.775Z",
+    "capturedAt": "2026-04-09T14:47:03.181Z",
     "apiBaseUrl": "http://127.0.0.1:3100",
     "config": {
       "connections": 20,
@@ -27,17 +27,17 @@
         "method": "GET",
         "path": "/tasks",
         "latencyMs": {
-          "avg": 26.68,
-          "p50": 25,
-          "p95": 39.33,
-          "p99": 55
+          "avg": 24.74,
+          "p50": 24,
+          "p95": 36,
+          "p99": 40
         },
-        "requestsPerSecond": 735.7,
-        "totalRequests": 22071,
+        "requestsPerSecond": 792.74,
+        "totalRequests": 23782,
         "errors": 0,
         "timeouts": 0,
         "non2xx": 0,
-        "bytesPerSecond": 87195101.87
+        "bytesPerSecond": 93954594.14
       },
       {
         "id": "workspace-tasks",
@@ -45,17 +45,17 @@
         "method": "GET",
         "path": "/workspaces/796d3d1c-32bb-40f6-990e-f309cfb451a3/tasks",
         "latencyMs": {
-          "avg": 32.63,
-          "p50": 29,
-          "p95": 54.67,
-          "p99": 74
+          "avg": 29,
+          "p50": 27,
+          "p95": 47,
+          "p99": 56
         },
-        "requestsPerSecond": 603.57,
-        "totalRequests": 18107,
+        "requestsPerSecond": 677.77,
+        "totalRequests": 20333,
         "errors": 0,
         "timeouts": 0,
         "non2xx": 0,
-        "bytesPerSecond": 71526263.47
+        "bytesPerSecond": 80327475.2
       },
       {
         "id": "update-status",
@@ -63,22 +63,22 @@
         "method": "PATCH",
         "path": "/workspaces/796d3d1c-32bb-40f6-990e-f309cfb451a3/tasks/960c202a-d6a7-45a7-a3d9-043d769aa543/status",
         "latencyMs": {
-          "avg": 11.19,
+          "avg": 10.94,
           "p50": 10,
-          "p95": 26.33,
-          "p99": 33
+          "p95": 25.33,
+          "p99": 32
         },
-        "requestsPerSecond": 1709.27,
-        "totalRequests": 51278,
+        "requestsPerSecond": 1748.27,
+        "totalRequests": 52448,
         "errors": 0,
         "timeouts": 0,
         "non2xx": 0,
-        "bytesPerSecond": 1669939.2
+        "bytesPerSecond": 1708032
       }
     ]
   },
   "frontend": {
-    "capturedAt": "2026-04-09T13:54:05.841Z",
+    "capturedAt": "2026-04-09T14:47:05.217Z",
     "webBaseUrl": "http://127.0.0.1:3101",
     "boardUrl": "http://127.0.0.1:3101/workspaces/796d3d1c-32bb-40f6-990e-f309cfb451a3/board",
     "config": {
@@ -90,112 +90,112 @@
     "metrics": {
       "boardReadyMs": {
         "count": 10,
-        "min": 80.96,
-        "max": 243.1,
-        "avg": 116.15,
-        "p50": 102.47,
-        "p95": 195.22,
-        "p99": 233.52
+        "min": 80.87,
+        "max": 235.54,
+        "avg": 124.05,
+        "p50": 118.74,
+        "p95": 191.08,
+        "p99": 226.65
       },
       "domContentLoadedMs": {
         "count": 10,
-        "min": 7.1,
-        "max": 74.4,
-        "avg": 15.16,
+        "min": 6.8,
+        "max": 83.7,
+        "avg": 15.74,
         "p50": 8.15,
-        "p95": 47.17,
-        "p99": 68.96
+        "p95": 50.49,
+        "p99": 77.06
       },
       "loadEventMs": {
         "count": 10,
-        "min": 30.5,
-        "max": 123.7,
-        "avg": 49.37,
-        "p50": 42.2,
-        "p95": 88.73,
-        "p99": 116.71
+        "min": 38.1,
+        "max": 131.2,
+        "avg": 51.55,
+        "p50": 43.15,
+        "p95": 93.4,
+        "p99": 123.64
       }
     },
     "runs": [
       {
         "run": 1,
         "success": true,
-        "boardReadyMs": 243.1,
-        "domContentLoadedMs": 74.4,
-        "loadEventMs": 123.7,
-        "responseStartMs": 16.1
+        "boardReadyMs": 235.54,
+        "domContentLoadedMs": 83.7,
+        "loadEventMs": 131.2,
+        "responseStartMs": 48.5
       },
       {
         "run": 2,
         "success": true,
-        "boardReadyMs": 81.15,
-        "domContentLoadedMs": 7.9,
-        "loadEventMs": 42.3,
-        "responseStartMs": 3.1
+        "boardReadyMs": 80.87,
+        "domContentLoadedMs": 9.9,
+        "loadEventMs": 42.8,
+        "responseStartMs": 5.3
       },
       {
         "run": 3,
         "success": true,
-        "boardReadyMs": 122.92,
-        "domContentLoadedMs": 8,
-        "loadEventMs": 46,
-        "responseStartMs": 3.1
+        "boardReadyMs": 83.36,
+        "domContentLoadedMs": 8.9,
+        "loadEventMs": 42.2,
+        "responseStartMs": 4.5
       },
       {
         "run": 4,
         "success": true,
-        "boardReadyMs": 128.27,
-        "domContentLoadedMs": 8.5,
-        "loadEventMs": 41.7,
+        "boardReadyMs": 124.37,
+        "domContentLoadedMs": 8,
+        "loadEventMs": 43.5,
         "responseStartMs": 3.3
       },
       {
         "run": 5,
         "success": true,
-        "boardReadyMs": 80.96,
-        "domContentLoadedMs": 8.3,
-        "loadEventMs": 43.5,
-        "responseStartMs": 3
+        "boardReadyMs": 136.73,
+        "domContentLoadedMs": 8.2,
+        "loadEventMs": 47.2,
+        "responseStartMs": 3.6
       },
       {
         "run": 6,
         "success": true,
-        "boardReadyMs": 136.7,
-        "domContentLoadedMs": 7.7,
-        "loadEventMs": 42.8,
-        "responseStartMs": 2.9
+        "boardReadyMs": 121.22,
+        "domContentLoadedMs": 8,
+        "loadEventMs": 41.7,
+        "responseStartMs": 3.5
       },
       {
         "run": 7,
         "success": true,
-        "boardReadyMs": 86.69,
-        "domContentLoadedMs": 7.1,
-        "loadEventMs": 42.1,
+        "boardReadyMs": 115.9,
+        "domContentLoadedMs": 6.8,
+        "loadEventMs": 38.1,
         "responseStartMs": 2.9
       },
       {
         "run": 8,
         "success": true,
-        "boardReadyMs": 81.05,
-        "domContentLoadedMs": 8.6,
-        "loadEventMs": 41.6,
-        "responseStartMs": 4.1
+        "boardReadyMs": 116.26,
+        "domContentLoadedMs": 8.1,
+        "loadEventMs": 38.6,
+        "responseStartMs": 3.4
       },
       {
         "run": 9,
         "success": true,
-        "boardReadyMs": 82.44,
-        "domContentLoadedMs": 7.2,
-        "loadEventMs": 39.5,
-        "responseStartMs": 3
+        "boardReadyMs": 91.21,
+        "domContentLoadedMs": 8.2,
+        "loadEventMs": 45.9,
+        "responseStartMs": 3.3
       },
       {
         "run": 10,
         "success": true,
-        "boardReadyMs": 118.24,
-        "domContentLoadedMs": 13.9,
-        "loadEventMs": 30.5,
-        "responseStartMs": 2.6
+        "boardReadyMs": 135,
+        "domContentLoadedMs": 7.6,
+        "loadEventMs": 44.3,
+        "responseStartMs": 2.9
       }
     ]
   }
