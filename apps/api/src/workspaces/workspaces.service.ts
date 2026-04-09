@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, type Workspace, type WorkspaceMembership } from '@prisma/client';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Prisma,
+  WorkspaceRole as PrismaWorkspaceRole,
+  type Workspace,
+  type WorkspaceMembership,
+} from '@prisma/client';
 import type { AuthenticatedWorkspace, WorkspaceDetails, WorkspaceSummary } from '@teamwork/types';
 import { normalizeWorkspaceName } from '@teamwork/validation';
 import { isPrismaUniqueConstraintForField } from '../common/utils/prisma-error.util';
@@ -17,6 +22,9 @@ type WorkspaceInvitationCountArgs = NonNullable<
 interface WorkspaceRepository {
   create<T extends Prisma.WorkspaceCreateArgs>(
     args: Prisma.SelectSubset<T, Prisma.WorkspaceCreateArgs>,
+  ): Promise<Prisma.WorkspaceGetPayload<T>>;
+  delete<T extends Prisma.WorkspaceDeleteArgs>(
+    args: Prisma.SelectSubset<T, Prisma.WorkspaceDeleteArgs>,
   ): Promise<Prisma.WorkspaceGetPayload<T>>;
   findUnique<T extends Prisma.WorkspaceFindUniqueArgs>(
     args: Prisma.SelectSubset<T, Prisma.WorkspaceFindUniqueArgs>,
@@ -166,6 +174,20 @@ export class WorkspacesService {
         };
       }),
     );
+  }
+
+  async deleteWorkspace(workspaceId: string, actingUserId: string): Promise<{ success: true }> {
+    const membership = await this.membershipsService.requireMembership(workspaceId, actingUserId);
+
+    if (membership.role !== PrismaWorkspaceRole.owner) {
+      throw new ForbiddenException('Only workspace owners can delete this workspace.');
+    }
+
+    await toWorkspaceDatabase(this.prisma).workspace.delete({
+      where: { id: workspaceId },
+    });
+
+    return { success: true };
   }
 
   toSummary(

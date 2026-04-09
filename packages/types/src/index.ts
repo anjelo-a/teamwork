@@ -157,6 +157,10 @@ export interface TaskDeleteResponse {
   success: true;
 }
 
+export interface WorkspaceDeleteResponse {
+  success: true;
+}
+
 export interface WorkspaceMemberRemovalResponse {
   success: true;
 }

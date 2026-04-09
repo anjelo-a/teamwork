@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ForbiddenException } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
 import type { WorkspaceMembershipSummary } from '@teamwork/types';
 import { MembershipsService } from '../memberships/memberships.service';
@@ -17,6 +18,7 @@ describe('WorkspacesService', () => {
     workspace: {
       findUnique: jest.Mock;
       create: jest.Mock;
+      delete: jest.Mock;
     };
     workspaceMembership: {
       findUniqueOrThrow: jest.Mock;
@@ -30,6 +32,7 @@ describe('WorkspacesService', () => {
   };
   let membershipsService: {
     createMembership: jest.Mock;
+    requireMembership: jest.Mock;
     toSummary: jest.Mock;
   };
   let service: WorkspacesService;
@@ -51,6 +54,7 @@ describe('WorkspacesService', () => {
       workspace: {
         findUnique: jest.fn(),
         create: jest.fn(),
+        delete: jest.fn(),
       },
       workspaceMembership: {
         findUniqueOrThrow: jest.fn(),
@@ -64,6 +68,7 @@ describe('WorkspacesService', () => {
     };
     membershipsService = {
       createMembership: jest.fn(),
+      requireMembership: jest.fn(),
       toSummary: jest.fn(
         (membership: WorkspaceMembershipRecord): WorkspaceMembershipSummary =>
           toMembershipSummary(membership),
@@ -166,5 +171,53 @@ describe('WorkspacesService', () => {
 
     expect(result.memberCount).toBe(3);
     expect(result.invitationCount).toBe(2);
+  });
+
+  it('allows owners to delete a workspace', async () => {
+    membershipsService.requireMembership.mockResolvedValueOnce({
+      id: 'membership-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      role: 'owner',
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+    });
+    prisma.workspace.delete.mockResolvedValueOnce({
+      id: 'workspace-1',
+    });
+
+    await expect(service.deleteWorkspace('workspace-1', 'user-1')).resolves.toEqual({
+      success: true,
+    });
+
+    expect(membershipsService.requireMembership).toHaveBeenCalledWith('workspace-1', 'user-1');
+    expect(prisma.workspace.delete).toHaveBeenCalledWith({
+      where: { id: 'workspace-1' },
+    });
+  });
+
+  it('rejects non-owners from deleting a workspace', async () => {
+    membershipsService.requireMembership.mockResolvedValueOnce({
+      id: 'membership-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      role: 'member',
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+    });
+
+    await expect(service.deleteWorkspace('workspace-1', 'user-1')).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(prisma.workspace.delete).not.toHaveBeenCalled();
+  });
+
+  it('propagates missing membership failures when deleting a workspace', async () => {
+    membershipsService.requireMembership.mockRejectedValueOnce(
+      new ForbiddenException('You do not belong to this workspace.'),
+    );
+
+    await expect(service.deleteWorkspace('workspace-1', 'user-1')).rejects.toThrow(
+      'You do not belong to this workspace.',
+    );
+    expect(prisma.workspace.delete).not.toHaveBeenCalled();
   });
 });

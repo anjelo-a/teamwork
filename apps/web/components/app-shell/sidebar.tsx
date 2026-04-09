@@ -12,6 +12,7 @@ import {
 } from '@/lib/app-shell';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
 import { CreateWorkspaceModal } from '@/components/workspaces/create-workspace-modal';
+import { DeleteWorkspaceDialog } from '@/components/workspaces/delete-workspace-dialog';
 
 interface SidebarNavigationProps {
   currentPath: string;
@@ -26,9 +27,13 @@ export function SidebarNavigation({
   const { auth, clearSession } = useAuthSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [isDeleteWorkspaceOpen, setIsDeleteWorkspaceOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const selectedWorkspaceId = currentWorkspace?.id ?? auth.workspaces[0]?.id ?? null;
   const currentWorkspaceName = currentWorkspace?.name ?? auth.workspaces[0]?.name ?? 'Workspace';
+  const currentWorkspaceRole =
+    currentWorkspace?.membership.role ?? auth.workspaces[0]?.membership.role ?? null;
+  const canDeleteWorkspace = selectedWorkspaceId !== null && currentWorkspaceRole === 'owner';
   const workspaceHeadingClassName = getWorkspaceHeadingClassName(currentWorkspaceName);
   const items = getSidebarNavigationItems(selectedWorkspaceId);
   const userName = auth.user.displayName.trim() || auth.user.email.trim() || 'User';
@@ -113,6 +118,20 @@ export function SidebarNavigation({
                 </option>
               ))}
             </select>
+
+            {canDeleteWorkspace ? (
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDeleteWorkspaceOpen(true);
+                  }}
+                  className="rounded-[0.7rem] border border-transparent px-2.5 py-1 text-[0.76rem] font-semibold text-danger transition-colors hover:border-danger/20 hover:bg-danger-soft"
+                >
+                  Delete
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -181,6 +200,16 @@ export function SidebarNavigation({
           router.push(getWorkspaceScopedHref(currentPath, workspaceId));
         }}
       />
+      {selectedWorkspaceId && isDeleteWorkspaceOpen ? (
+        <DeleteWorkspaceDialog
+          open
+          workspaceId={selectedWorkspaceId}
+          workspaceName={currentWorkspaceName}
+          onClose={() => {
+            setIsDeleteWorkspaceOpen(false);
+          }}
+        />
+      ) : null}
     </>
   );
 }

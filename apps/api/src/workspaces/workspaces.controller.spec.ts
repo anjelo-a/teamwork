@@ -25,6 +25,7 @@ describe('WorkspacesController authorization metadata', () => {
   });
 
   it.each([
+    ['deleteWorkspace'],
     ['listInvitations'],
     ['getWorkspaceShareLink'],
     ['addMember'],

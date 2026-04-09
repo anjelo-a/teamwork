@@ -14,6 +14,7 @@ import type {
   UpdateTaskAssigneeInput,
   UpdateTaskInput,
   UpdateTaskStatusInput,
+  WorkspaceDeleteResponse,
   WorkspaceInvitationResponse,
   WorkspaceMemberResponse,
   WorkspaceMemberRemovalResponse,
@@ -30,6 +31,7 @@ import {
   parsePublicWorkspaceShareLinkLookup,
   parseRegisterResponse,
   parseUserInvitationsResponse,
+  parseWorkspaceDeleteResponse,
   parseWorkspaceInvitationResponse,
   parseWorkspaceMemberResponse,
   parseWorkspaceMemberRemovalResponse,
@@ -98,6 +100,17 @@ export async function createWorkspace(
     method: 'POST',
     body: JSON.stringify(input),
     parser: parseWorkspaceResponse,
+  });
+}
+
+export async function deleteWorkspace(
+  workspaceId: string,
+  accessToken: string,
+): Promise<WorkspaceDeleteResponse> {
+  return apiRequest(`/workspaces/${workspaceId}`, {
+    accessToken,
+    method: 'DELETE',
+    parser: parseWorkspaceDeleteResponse,
   });
 }
 

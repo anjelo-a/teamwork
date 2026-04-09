@@ -57,6 +57,16 @@ export class WorkspacesController {
     };
   }
 
+  @Delete(':workspaceId')
+  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
+  @WorkspaceRoles('owner')
+  async deleteWorkspace(
+    @CurrentUser() user: RequestUser,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+  ) {
+    return this.workspacesService.deleteWorkspace(workspaceId, user.id);
+  }
+
   @Get(':workspaceId/members')
   @UseGuards(WorkspaceMemberGuard)
   async listMembers(@Param('workspaceId', ParseUUIDPipe) workspaceId: string) {
