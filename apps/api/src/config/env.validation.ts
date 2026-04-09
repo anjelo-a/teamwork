@@ -3,15 +3,18 @@ const DEFAULT_JWT_SECRET = 'teamwork-dev-secret-change-me';
 const DEFAULT_APP_URL = 'http://localhost:3000';
 const DEFAULT_INVITE_TTL_DAYS = 30;
 const DEFAULT_SHARE_LINK_TTL_DAYS = 14;
-const VALID_NODE_ENV_VALUES = ['development', 'test', 'production'] as const;
-type NodeEnvironment = (typeof VALID_NODE_ENV_VALUES)[number];
+const DEFAULT_THROTTLE_TTL_MS = 60_000;
+const DEFAULT_DEVELOPMENT_THROTTLE_LIMIT = 500;
+const DEFAULT_PRODUCTION_THROTTLE_LIMIT = 20;
+type NodeEnvironment = 'development' | 'test' | 'production';
 
 export function validateEnvironment(config: Record<string, unknown>): Record<string, unknown> {
   const appUrl = readUrl(config['APP_URL']) ?? DEFAULT_APP_URL;
+  const nodeEnv = readNodeEnvironment(config['NODE_ENV']) ?? 'development';
 
   return {
     ...config,
-    NODE_ENV: readNodeEnvironment(config['NODE_ENV']) ?? 'development',
+    NODE_ENV: nodeEnv,
     DATABASE_URL: readString(config['DATABASE_URL']) ?? DEFAULT_DATABASE_URL,
     JWT_SECRET: readString(config['JWT_SECRET']) ?? DEFAULT_JWT_SECRET,
     JWT_EXPIRES_IN: readString(config['JWT_EXPIRES_IN']) ?? '15m',
@@ -20,6 +23,10 @@ export function validateEnvironment(config: Record<string, unknown>): Record<str
     INVITE_TTL_DAYS: readPositiveInteger(config['INVITE_TTL_DAYS']) ?? DEFAULT_INVITE_TTL_DAYS,
     SHARE_LINK_TTL_DAYS:
       readPositiveInteger(config['SHARE_LINK_TTL_DAYS']) ?? DEFAULT_SHARE_LINK_TTL_DAYS,
+    THROTTLE_TTL_MS: readPositiveInteger(config['THROTTLE_TTL_MS']) ?? DEFAULT_THROTTLE_TTL_MS,
+    THROTTLE_LIMIT:
+      readPositiveInteger(config['THROTTLE_LIMIT']) ??
+      resolveDefaultThrottleLimitForEnvironment(nodeEnv),
     PORT: Number.parseInt(readString(config['PORT']) ?? '3000', 10),
   };
 }
@@ -65,9 +72,21 @@ function readNodeEnvironment(value: unknown): NodeEnvironment | undefined {
     return undefined;
   }
 
-  if (VALID_NODE_ENV_VALUES.includes(normalizedValue as NodeEnvironment)) {
-    return normalizedValue as NodeEnvironment;
+  if (isNodeEnvironment(normalizedValue)) {
+    return normalizedValue;
   }
 
   throw new Error(`Invalid NODE_ENV: ${normalizedValue}`);
+}
+
+function isNodeEnvironment(value: string): value is NodeEnvironment {
+  return value === 'development' || value === 'test' || value === 'production';
+}
+
+function resolveDefaultThrottleLimitForEnvironment(nodeEnv: NodeEnvironment): number {
+  if (nodeEnv === 'development' || nodeEnv === 'test') {
+    return DEFAULT_DEVELOPMENT_THROTTLE_LIMIT;
+  }
+
+  return DEFAULT_PRODUCTION_THROTTLE_LIMIT;
 }

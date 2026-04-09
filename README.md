@@ -196,6 +196,21 @@ pnpm typecheck
 pnpm test
 ```
 
+## Performance Benchmark Workflow
+
+The repository includes repeatable performance scripts for resume-ready evidence in `docs/perf`.
+
+For reliable frontend measurements, run the web app in production mode (`next start`) instead of `next dev`.
+For reliable backend latency measurements under load, raise API throttler limits in the benchmark environment with `THROTTLE_LIMIT` and `THROTTLE_TTL_MS`.
+
+```bash
+# capture one run (baseline/after x local/deployed)
+RUN_LABEL=baseline ENV_LABEL=local API_BASE_URL=http://127.0.0.1:3000 WEB_BASE_URL=http://127.0.0.1:3001 pnpm perf:run
+
+# generate delta summary markdown
+pnpm perf:summary
+```
+
 ## Security
 
 Do not commit `.env` files or real credentials. Keep secrets local for development and use your deployment platform's secret store in hosted environments.

@@ -178,7 +178,7 @@ export default function WorkspaceBoardPage() {
       ) : null}
 
       {workspaceQuery.status === 'success' && tasksQuery.status === 'success' ? (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3" data-perf-board-ready="true">
           {membersQuery.status === 'error' ? (
             <PageSurface
               eyebrow="Limited filters"

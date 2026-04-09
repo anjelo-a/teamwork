@@ -25,13 +25,13 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const nodeEnv = configService.get<'development' | 'test' | 'production'>('NODE_ENV');
-        const shouldUseRelaxedLimits = nodeEnv === 'development' || nodeEnv === 'test';
+        const ttl = configService.get<number>('THROTTLE_TTL_MS', 60_000);
+        const limit = configService.get<number>('THROTTLE_LIMIT', 500);
 
         return [
           {
-            ttl: 60_000,
-            limit: shouldUseRelaxedLimits ? 500 : 20,
+            ttl,
+            limit,
           },
         ];
       },

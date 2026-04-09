@@ -11,14 +11,21 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test"
+    "test": "pnpm -r --if-present test",
+    "perf:fixtures": "node apps/api/scripts/perf-fixtures.mjs",
+    "perf:backend": "node apps/api/scripts/perf-backend.mjs",
+    "perf:frontend": "node apps/api/scripts/perf-frontend.mjs",
+    "perf:run": "node apps/api/scripts/perf-run.mjs",
+    "perf:summary": "node apps/api/scripts/perf-summary.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@tailwindcss/postcss": "^4",
+    "autocannon": "^8.0.0",
     "eslint": "^9.39.1",
     "eslint-config-next": "16.2.1",
     "globals": "^16.4.0",
+    "playwright": "^1.59.1",
     "prettier": "^3.6.2",
     "tailwindcss": "^4",
     "typescript": "^5.9.3",

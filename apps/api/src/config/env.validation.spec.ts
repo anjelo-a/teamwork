@@ -9,6 +9,8 @@ describe('validateEnvironment', () => {
     expect(result['INVITE_BASE_URL']).toBe('http://localhost:3000');
     expect(result['INVITE_TTL_DAYS']).toBe(30);
     expect(result['SHARE_LINK_TTL_DAYS']).toBe(14);
+    expect(result['THROTTLE_TTL_MS']).toBe(60000);
+    expect(result['THROTTLE_LIMIT']).toBe(500);
   });
 
   it('uses configured invite values when they are valid', () => {
@@ -55,5 +57,32 @@ describe('validateEnvironment', () => {
         NODE_ENV: 'staging',
       }),
     ).toThrow('Invalid NODE_ENV: staging');
+  });
+
+  it('uses production throttle defaults when NODE_ENV is production', () => {
+    const result = validateEnvironment({
+      NODE_ENV: 'production',
+    });
+
+    expect(result['THROTTLE_LIMIT']).toBe(20);
+    expect(result['THROTTLE_TTL_MS']).toBe(60000);
+  });
+
+  it('accepts explicit throttle overrides', () => {
+    const result = validateEnvironment({
+      THROTTLE_LIMIT: '100000',
+      THROTTLE_TTL_MS: '60000',
+    });
+
+    expect(result['THROTTLE_LIMIT']).toBe(100000);
+    expect(result['THROTTLE_TTL_MS']).toBe(60000);
+  });
+
+  it('rejects non-positive throttle values', () => {
+    expect(() =>
+      validateEnvironment({
+        THROTTLE_LIMIT: '0',
+      }),
+    ).toThrow('Invalid positive integer: 0');
   });
 });
