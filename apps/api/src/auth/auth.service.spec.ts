@@ -134,6 +134,14 @@ describe('AuthService', () => {
       );
       expect(result.accessToken).toBe('signed-token');
       expect(result.user).toEqual(userSummary);
+      expect(jwtService.signAsync).toHaveBeenCalledWith({
+        sub: userSummary.id,
+        email: userSummary.email,
+        displayName: userSummary.displayName,
+        createdAt: userSummary.createdAt,
+        updatedAt: userSummary.updatedAt,
+        type: 'access',
+      });
     });
 
     it('generates a default workspace name from the displayName when workspaceName is omitted', async () => {
@@ -316,7 +324,14 @@ describe('AuthService', () => {
 
   describe('verifyAccessToken', () => {
     it('returns the decoded payload on a valid token', async () => {
-      const decoded = { sub: 'user-1', email: 'alice@example.com', type: 'access' };
+      const decoded = {
+        sub: 'user-1',
+        email: 'alice@example.com',
+        displayName: 'Alice',
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        type: 'access',
+      };
       jwtService.verifyAsync.mockResolvedValueOnce(decoded);
 
       const result = await service.verifyAccessToken('valid-token');

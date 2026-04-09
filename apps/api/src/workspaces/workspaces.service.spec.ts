@@ -4,6 +4,7 @@ import { WorkspacesService } from './workspaces.service';
 import type { WorkspaceMembershipSummary } from '@teamwork/types';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TasksService } from '../tasks/tasks.service';
 
 describe('WorkspacesService', () => {
   type WorkspaceMembershipRecord = {
@@ -33,7 +34,11 @@ describe('WorkspacesService', () => {
   let membershipsService: {
     createMembership: jest.Mock;
     requireMembership: jest.Mock;
+    listWorkspaceMembers: jest.Mock;
     toSummary: jest.Mock;
+  };
+  let tasksService: {
+    listTasksForWorkspace: jest.Mock;
   };
   let service: WorkspacesService;
 
@@ -69,10 +74,14 @@ describe('WorkspacesService', () => {
     membershipsService = {
       createMembership: jest.fn(),
       requireMembership: jest.fn(),
+      listWorkspaceMembers: jest.fn(),
       toSummary: jest.fn(
         (membership: WorkspaceMembershipRecord): WorkspaceMembershipSummary =>
           toMembershipSummary(membership),
       ),
+    };
+    tasksService = {
+      listTasksForWorkspace: jest.fn(),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -80,6 +89,7 @@ describe('WorkspacesService', () => {
         WorkspacesService,
         { provide: PrismaService, useValue: prisma },
         { provide: MembershipsService, useValue: membershipsService },
+        { provide: TasksService, useValue: tasksService },
       ],
     }).compile();
 
@@ -171,6 +181,68 @@ describe('WorkspacesService', () => {
 
     expect(result.memberCount).toBe(3);
     expect(result.invitationCount).toBe(2);
+  });
+
+  it('returns workspace board data in one service call', async () => {
+    prisma.workspaceMembership.findUnique.mockResolvedValueOnce({
+      id: 'membership-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      role: 'owner',
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      workspace: {
+        id: 'workspace-1',
+        name: 'Product Team',
+        slug: 'product-team',
+        createdByUserId: 'user-1',
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-26T00:00:00.000Z'),
+      },
+    });
+    prisma.workspaceMembership.count.mockResolvedValueOnce(3);
+    prisma.workspaceInvitation.count.mockResolvedValueOnce(2);
+    membershipsService.listWorkspaceMembers.mockResolvedValueOnce([
+      {
+        id: 'membership-1',
+        workspaceId: 'workspace-1',
+        userId: 'user-1',
+        role: 'owner',
+        createdAt: '2026-03-26T00:00:00.000Z',
+        user: {
+          id: 'user-1',
+          email: 'owner@example.com',
+          displayName: 'Owner',
+          createdAt: '2026-03-26T00:00:00.000Z',
+          updatedAt: '2026-03-26T00:00:00.000Z',
+        },
+      },
+    ]);
+    tasksService.listTasksForWorkspace.mockResolvedValueOnce({
+      tasks: [],
+      limit: 50,
+      hasMore: false,
+      nextCursor: null,
+    });
+
+    const result = await service.getWorkspaceBoardDataForUser({
+      workspaceId: 'workspace-1',
+      currentUserId: 'user-1',
+      assignment: 'everyone',
+      limit: 50,
+    });
+
+    expect(result.workspace.id).toBe('workspace-1');
+    expect(result.members).toHaveLength(1);
+    expect(result.tasks).toEqual([]);
+    expect(tasksService.listTasksForWorkspace).toHaveBeenCalledWith({
+      workspaceId: 'workspace-1',
+      currentUserId: 'user-1',
+      dueBucket: undefined,
+      assignment: 'everyone',
+      referenceDate: undefined,
+      limit: 50,
+      cursor: undefined,
+    });
   });
 
   it('allows owners to delete a workspace', async () => {

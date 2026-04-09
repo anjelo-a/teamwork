@@ -3,14 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { JwtAccessTokenPayload, UserSummary } from '@teamwork/types';
-import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(
-    configService: ConfigService,
-    private readonly usersService: UsersService,
-  ) {
+  constructor(configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -19,12 +15,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtAccessTokenPayload): Promise<UserSummary> {
-    const user = await this.usersService.findById(payload.sub);
-
-    if (!user) {
+    if (
+      typeof payload.displayName !== 'string' ||
+      payload.displayName.trim().length === 0 ||
+      typeof payload.createdAt !== 'string' ||
+      payload.createdAt.trim().length === 0 ||
+      typeof payload.updatedAt !== 'string' ||
+      payload.updatedAt.trim().length === 0
+    ) {
       throw new UnauthorizedException('Invalid authentication token.');
     }
 
-    return this.usersService.toSummary(user);
+    return {
+      id: payload.sub,
+      email: payload.email,
+      displayName: payload.displayName,
+      createdAt: payload.createdAt,
+      updatedAt: payload.updatedAt,
+    };
   }
 }

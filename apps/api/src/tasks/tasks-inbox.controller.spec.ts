@@ -40,14 +40,16 @@ describe('TasksInboxController', () => {
     };
     tasksService.listTasksForUser.mockResolvedValueOnce({
       tasks: [{ id: 'task-1' }],
-      limit: 200,
+      limit: 50,
       hasMore: false,
+      nextCursor: null,
     });
 
     await expect(controller.listTasks(user, filters)).resolves.toEqual({
       tasks: [{ id: 'task-1' }],
-      limit: 200,
+      limit: 50,
       hasMore: false,
+      nextCursor: null,
     });
     expect(tasksService.listTasksForUser).toHaveBeenCalledWith(user.id, filters);
   });

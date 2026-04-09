@@ -1,5 +1,5 @@
 import { Transform, type TransformFnParams } from 'class-transformer';
-import { IsIn, IsOptional, IsUUID } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 import type {
   TaskAssignmentFilter as SharedTaskAssignmentFilter,
   TaskDueBucket as SharedTaskDueBucket,
@@ -21,6 +21,8 @@ export interface TaskListFilters {
   dueBucket?: TaskDueBucket;
   assignment?: TaskAssignmentFilter;
   referenceDate?: string | null;
+  limit?: number;
+  cursor?: string;
 }
 
 function normalizeOptionalQueryValue({ value }: TransformFnParams): unknown {
@@ -30,6 +32,21 @@ function normalizeOptionalQueryValue({ value }: TransformFnParams): unknown {
 
   const normalizedValue = value.trim();
   return normalizedValue === '' ? undefined : normalizedValue;
+}
+
+function normalizeOptionalPositiveIntegerValue({ value }: TransformFnParams): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const normalizedValue = value.trim();
+
+  if (normalizedValue === '') {
+    return undefined;
+  }
+
+  const parsedValue = Number.parseInt(normalizedValue, 10);
+  return Number.isFinite(parsedValue) ? parsedValue : value;
 }
 
 function normalizeAssignmentFilterValue({ value }: TransformFnParams): unknown {
@@ -70,4 +87,16 @@ export class ListTaskFiltersDto implements TaskListFilters {
   @IsTaskDueDate()
   @Transform(({ value }: TransformFnParams) => normalizeTaskDueDateInput(value))
   referenceDate?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @Transform(normalizeOptionalPositiveIntegerValue)
+  limit?: number;
+
+  @IsOptional()
+  @IsUUID()
+  @Transform(normalizeOptionalQueryValue)
+  cursor?: string;
 }

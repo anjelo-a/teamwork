@@ -29,3 +29,5 @@ yarn-error.log*
 # perf artifacts (generated)
 docs/perf/baseline-*.json
 docs/perf/baseline-*.md
+docs/perf/after-deployed*.json
+docs/perf/after-deployed*.md

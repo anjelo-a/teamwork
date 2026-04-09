@@ -93,7 +93,6 @@ export class TasksController {
 
   @Patch(':taskId/status')
   async updateTaskStatus(
-    @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('taskId', ParseUUIDPipe) taskId: string,
     @Body() dto: UpdateTaskStatusDto,

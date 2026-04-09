@@ -15,6 +15,7 @@ describe('WorkspacesController authorization metadata', () => {
 
   it.each([
     ['getWorkspace'],
+    ['getWorkspaceBoardData'],
     ['listMembers'],
     ['removeMember'],
   ])('keeps %s guarded by workspace membership without owner-only role checks', (methodName) => {

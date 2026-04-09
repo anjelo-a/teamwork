@@ -64,14 +64,16 @@ describe('TasksController', () => {
     };
     tasksService.listTasksForWorkspace.mockResolvedValueOnce({
       tasks: [{ id: taskId }],
-      limit: 200,
+      limit: 50,
       hasMore: false,
+      nextCursor: null,
     });
 
     await expect(controller.listTasks(user, workspaceId, filters)).resolves.toEqual({
       tasks: [{ id: taskId }],
-      limit: 200,
+      limit: 50,
       hasMore: false,
+      nextCursor: null,
     });
     expect(tasksService.listTasksForWorkspace).toHaveBeenCalledWith({
       workspaceId,
@@ -139,7 +141,7 @@ describe('TasksController', () => {
     const dto: UpdateTaskStatusDto = { status: 'done' };
     tasksService.updateTaskStatus.mockResolvedValueOnce({ id: taskId });
 
-    await expect(controller.updateTaskStatus(user, workspaceId, taskId, dto)).resolves.toEqual({
+    await expect(controller.updateTaskStatus(workspaceId, taskId, dto)).resolves.toEqual({
       task: { id: taskId },
     });
     expect(tasksService.updateTaskStatus).toHaveBeenCalledWith(

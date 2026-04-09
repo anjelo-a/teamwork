@@ -116,11 +116,16 @@ export interface TaskSummary {
   assigneeUserId: ID | null;
   createdAt: string;
   updatedAt: string;
-  createdByUser: UserSummary;
-  assigneeUser: UserSummary | null;
+  createdByUser: TaskActorSummary;
+  assigneeUser: TaskActorSummary | null;
 }
 
 export type TaskDetails = TaskSummary;
+
+export interface TaskActorSummary {
+  id: ID;
+  displayName: string;
+}
 
 export interface CreateTaskInput {
   title: string;
@@ -151,6 +156,7 @@ export interface TaskListResponse {
   tasks: TaskSummary[];
   limit: number;
   hasMore: boolean;
+  nextCursor: ID | null;
 }
 
 export interface TaskDeleteResponse {
@@ -229,5 +235,17 @@ export interface UserInvitationsResponse {
 export interface JwtAccessTokenPayload {
   sub: ID;
   email: string;
+  displayName: string;
+  createdAt: string;
+  updatedAt: string;
   type: 'access';
+}
+
+export interface WorkspaceBoardDataResponse {
+  workspace: WorkspaceDetails;
+  members: WorkspaceMemberDetail[];
+  tasks: TaskSummary[];
+  limit: number;
+  hasMore: boolean;
+  nextCursor: ID | null;
 }

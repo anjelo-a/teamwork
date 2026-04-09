@@ -1,10 +1,15 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, TaskStatus as PrismaTaskStatus, type User } from '@prisma/client';
+import { Prisma, TaskStatus as PrismaTaskStatus } from '@prisma/client';
 import { normalizeTaskDescription, normalizeTaskTitle } from '@teamwork/validation';
-import type { TaskDetails, TaskListResponse, TaskStatus, TaskSummary, UserSummary } from '@teamwork/types';
+import type {
+  TaskActorSummary,
+  TaskDetails,
+  TaskListResponse,
+  TaskStatus,
+  TaskSummary,
+} from '@teamwork/types';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { UsersService } from '../users/users.service';
 import { serializeTaskDueDate, tryParseTaskDueDate } from './task-due-date.util';
 import type {
   TaskAssignmentFilter,
@@ -14,13 +19,11 @@ import type {
 
 const userSummarySelect = {
   id: true,
-  email: true,
   displayName: true,
-  createdAt: true,
-  updatedAt: true,
 } satisfies Prisma.UserSelect;
 
-const MAX_TASK_LIST_RESULTS = 200;
+const DEFAULT_TASK_LIST_RESULTS = 50;
+const MAX_TASK_LIST_RESULTS = 100;
 
 const taskDetailsSelect = {
   id: true,
@@ -112,7 +115,6 @@ export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly membershipsService: MembershipsService,
-    private readonly usersService: UsersService,
   ) {}
 
   async createTask(
@@ -166,21 +168,31 @@ export class TasksService {
   }
 
   private async listTasks(input: ListTasksForUserInput): Promise<TaskListResponse> {
+    const limit = this.resolveTaskListLimit(input.limit);
     const tasks = await toTaskDatabase(this.prisma).task.findMany({
       where: this.buildTaskListWhere(input),
       select: taskListSelect,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: MAX_TASK_LIST_RESULTS + 1,
+      take: limit + 1,
+      ...(input.cursor
+        ? {
+            cursor: { id: input.cursor },
+            skip: 1,
+          }
+        : {}),
     });
 
-    const hasMore = tasks.length > MAX_TASK_LIST_RESULTS;
-    const visibleTasks = hasMore ? tasks.slice(0, MAX_TASK_LIST_RESULTS) : tasks;
+    const hasMore = tasks.length > limit;
+    const visibleTasks = hasMore ? tasks.slice(0, limit) : tasks;
     const usersById = await this.loadTaskListUsers(visibleTasks);
+    const lastVisibleTask = visibleTasks.at(-1);
+    const nextCursor = hasMore && lastVisibleTask ? lastVisibleTask.id : null;
 
     return {
       tasks: visibleTasks.map((task) => this.toSummaryFromListRecord(task, usersById)),
-      limit: MAX_TASK_LIST_RESULTS,
+      limit,
       hasMore,
+      nextCursor,
     };
   }
 
@@ -293,8 +305,8 @@ export class TasksService {
       assigneeUserId: task.assigneeUserId,
       createdAt: task.createdAt.toISOString(),
       updatedAt: task.updatedAt.toISOString(),
-      createdByUser: this.toUserSummary(task.createdByUser),
-      assigneeUser: task.assigneeUser ? this.toUserSummary(task.assigneeUser) : null,
+      createdByUser: this.toTaskActorSummary(task.createdByUser),
+      assigneeUser: task.assigneeUser ? this.toTaskActorSummary(task.assigneeUser) : null,
     };
   }
 
@@ -459,7 +471,7 @@ export class TasksService {
     return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   }
 
-  private async loadTaskListUsers(tasks: TaskListRecord[]): Promise<Map<string, UserSummary>> {
+  private async loadTaskListUsers(tasks: TaskListRecord[]): Promise<Map<string, TaskActorSummary>> {
     const userIds = new Set<string>();
 
     for (const task of tasks) {
@@ -483,12 +495,12 @@ export class TasksService {
       select: userSummarySelect,
     });
 
-    return new Map(users.map((user) => [user.id, this.toUserSummary(user)]));
+    return new Map(users.map((user) => [user.id, this.toTaskActorSummary(user)]));
   }
 
   private toSummaryFromListRecord(
     task: TaskListRecord,
-    usersById: Map<string, UserSummary>,
+    usersById: Map<string, TaskActorSummary>,
   ): TaskSummary {
     const createdByUser = usersById.get(task.createdByUserId);
 
@@ -518,10 +530,21 @@ export class TasksService {
     };
   }
 
-  private toUserSummary(
-    user: Pick<User, 'id' | 'email' | 'displayName' | 'createdAt' | 'updatedAt'>,
-  ): UserSummary {
-    return this.usersService.toSummary(user);
+  private resolveTaskListLimit(requestedLimit: number | undefined): number {
+    if (!requestedLimit) {
+      return DEFAULT_TASK_LIST_RESULTS;
+    }
+
+    return Math.min(Math.max(requestedLimit, 1), MAX_TASK_LIST_RESULTS);
+  }
+
+  private toTaskActorSummary(
+    user: Pick<TaskActorSummary, 'id' | 'displayName'>,
+  ): TaskActorSummary {
+    return {
+      id: user.id,
+      displayName: user.displayName,
+    };
   }
 }
 

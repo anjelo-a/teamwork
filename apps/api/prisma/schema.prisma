@@ -119,8 +119,10 @@ model Task {
   assigneeUser    User?      @relation("TaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
+  @@index([workspaceId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([workspaceId, dueDate])
   @@index([assigneeUserId])
+  @@index([workspaceId, assigneeUserId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([workspaceId, status])
   @@map("tasks")
 }

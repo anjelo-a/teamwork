@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,14 +8,17 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
+import type { WorkspaceBoardDataResponse } from '@teamwork/types';
 import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
 import { WorkspaceMemberGuard } from '../common/auth/workspace-member.guard';
 import { WorkspaceRoleGuard } from '../common/auth/workspace-role.guard';
 import { WorkspaceRoles } from '../common/auth/workspace-roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
+import { ListTaskFiltersDto } from '../tasks/dto/list-task-filters.dto';
 import { MembershipsService } from '../memberships/memberships.service';
 import { WorkspaceInvitationsService } from '../workspace-invitations/workspace-invitations.service';
 import { AddWorkspaceMemberDto } from './dto/add-workspace-member.dto';
@@ -55,6 +59,26 @@ export class WorkspacesController {
     return {
       workspace: await this.workspacesService.getWorkspaceForUser(workspaceId, user.id),
     };
+  }
+
+  @Get(':workspaceId/board-data')
+  @UseGuards(WorkspaceMemberGuard)
+  async getWorkspaceBoardData(
+    @CurrentUser() user: RequestUser,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Query() filters: ListTaskFiltersDto,
+  ): Promise<WorkspaceBoardDataResponse> {
+    const { workspaceId: requestedWorkspaceId, ...taskFilters } = filters;
+
+    if (requestedWorkspaceId && requestedWorkspaceId !== workspaceId) {
+      throw new BadRequestException('workspaceId query param must match the route workspaceId.');
+    }
+
+    return this.workspacesService.getWorkspaceBoardDataForUser({
+      workspaceId,
+      currentUserId: user.id,
+      ...taskFilters,
+    });
   }
 
   @Delete(':workspaceId')

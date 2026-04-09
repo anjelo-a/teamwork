@@ -5,11 +5,19 @@ import {
   type Workspace,
   type WorkspaceMembership,
 } from '@prisma/client';
-import type { AuthenticatedWorkspace, WorkspaceDetails, WorkspaceSummary } from '@teamwork/types';
+import type {
+  AuthenticatedWorkspace,
+  TaskAssignmentFilter,
+  TaskDueBucket,
+  WorkspaceBoardDataResponse,
+  WorkspaceDetails,
+  WorkspaceSummary,
+} from '@teamwork/types';
 import { normalizeWorkspaceName } from '@teamwork/validation';
 import { isPrismaUniqueConstraintForField } from '../common/utils/prisma-error.util';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TasksService } from '../tasks/tasks.service';
 import { slugify } from '../common/utils/slug.util';
 
 type WorkspaceMembershipCountArgs = NonNullable<
@@ -69,6 +77,7 @@ export class WorkspacesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly membershipsService: MembershipsService,
+    private readonly tasksService: TasksService,
   ) {}
 
   async createWorkspace(
@@ -174,6 +183,36 @@ export class WorkspacesService {
         };
       }),
     );
+  }
+
+  async getWorkspaceBoardDataForUser(input: {
+    workspaceId: string;
+    currentUserId: string;
+    dueBucket?: TaskDueBucket;
+    assignment?: TaskAssignmentFilter;
+    referenceDate?: string | null;
+    limit?: number;
+    cursor?: string;
+  }): Promise<WorkspaceBoardDataResponse> {
+    const [workspace, members, taskList] = await Promise.all([
+      this.getWorkspaceForUser(input.workspaceId, input.currentUserId),
+      this.membershipsService.listWorkspaceMembers(input.workspaceId),
+      this.tasksService.listTasksForWorkspace({
+        workspaceId: input.workspaceId,
+        currentUserId: input.currentUserId,
+        ...(input.dueBucket !== undefined ? { dueBucket: input.dueBucket } : {}),
+        ...(input.assignment !== undefined ? { assignment: input.assignment } : {}),
+        ...(input.referenceDate !== undefined ? { referenceDate: input.referenceDate } : {}),
+        ...(input.limit !== undefined ? { limit: input.limit } : {}),
+        ...(input.cursor !== undefined ? { cursor: input.cursor } : {}),
+      }),
+    ]);
+
+    return {
+      workspace,
+      members,
+      ...taskList,
+    };
   }
 
   async deleteWorkspace(workspaceId: string, actingUserId: string): Promise<{ success: true }> {

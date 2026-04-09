@@ -2,7 +2,12 @@ import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import { hash, compare } from 'bcrypt';
 import { normalizeEmail, normalizeWorkspaceName } from '@teamwork/validation';
-import type { AuthPayload, JwtAccessTokenPayload, RegisterResponse } from '@teamwork/types';
+import type {
+  AuthPayload,
+  JwtAccessTokenPayload,
+  RegisterResponse,
+  UserSummary,
+} from '@teamwork/types';
 import { isPrismaUniqueConstraintForField } from '../common/utils/prisma-error.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { MembershipsService } from '../memberships/memberships.service';
@@ -69,11 +74,12 @@ export class AuthService {
       }),
     );
 
-    const accessToken = await this.createAccessToken(result.user.id, result.user.email);
+    const userSummary = this.usersService.toSummary(result.user);
+    const accessToken = await this.createAccessToken(userSummary);
     const workspaces = await this.workspacesService.listForUser(result.user.id);
 
     return {
-      user: this.usersService.toSummary(result.user),
+      user: userSummary,
       workspace: this.workspacesService.toSummary(result.workspace),
       memberships: [this.membershipsService.toSummary(result.membership)],
       workspaces,
@@ -95,11 +101,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password.');
     }
 
-    const accessToken = await this.createAccessToken(user.id, user.email);
+    const userSummary = this.usersService.toSummary(user);
+    const accessToken = await this.createAccessToken(userSummary);
     const workspaces = await this.workspacesService.listForUser(user.id);
 
     return {
-      user: this.usersService.toSummary(user),
+      user: userSummary,
       workspaces,
       accessToken,
     };
@@ -120,10 +127,13 @@ export class AuthService {
     return this.jwtService.verifyAsync<JwtAccessTokenPayload>(token);
   }
 
-  private async createAccessToken(userId: string, email: string): Promise<string> {
+  private async createAccessToken(user: UserSummary): Promise<string> {
     const payload: JwtAccessTokenPayload = {
-      sub: userId,
-      email,
+      sub: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
       type: 'access',
     };
 

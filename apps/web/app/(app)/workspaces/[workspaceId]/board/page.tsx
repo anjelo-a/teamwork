@@ -9,9 +9,7 @@ import { TaskDetailsModal } from '@/components/board/task-details-modal';
 import { PageStatusCard, PageSurface } from '@/components/app-shell/page-state';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
 import {
-  getWorkspaceDetails,
-  getWorkspaceMembers,
-  listWorkspaceTasks,
+  getWorkspaceBoardData,
 } from '@/lib/api/client';
 import {
   DEFAULT_BOARD_ASSIGNEE_FILTER,
@@ -33,8 +31,7 @@ import {
 } from '@/lib/task-list';
 
 const STATUS_OPTIONS: BoardStatusFilter[] = ['all', 'todo', 'in_progress', 'done'];
-const GENERIC_WORKSPACE_ERROR_MESSAGE = 'This workspace could not be loaded right now.';
-const GENERIC_TASKS_ERROR_MESSAGE = 'Workspace tasks could not be loaded right now.';
+const GENERIC_BOARD_ERROR_MESSAGE = 'This workspace board could not be loaded right now.';
 
 export default function WorkspaceBoardPage() {
   const params = useParams<{ workspaceId: string }>();
@@ -56,40 +53,37 @@ export default function WorkspaceBoardPage() {
   });
   const { setActionOverride } = useAppShellAction();
 
-  const workspaceQuery = useAuthenticatedApiResource({
-    key: `workspace:${workspaceId}:board`,
-    load: (accessToken) => getWorkspaceDetails(workspaceId, accessToken),
-  });
-  const membersQuery = useAuthenticatedApiResource({
-    key: `workspace:${workspaceId}:members:board`,
-    load: (accessToken) => getWorkspaceMembers(workspaceId, accessToken),
-  });
-
-  const assigneeOptions = useMemo(
-    () =>
-      buildBoardAssigneeOptions(
-        membersQuery.status === 'success' ? membersQuery.data.members : null,
-        auth.user,
-      ),
-    [auth.user, membersQuery],
-  );
+  const assigneeOptions = useMemo(() => buildBoardAssigneeOptions(null, auth.user), [auth.user]);
   const resolvedAssigneeFilter = useMemo(
     () => resolveBoardAssigneeFilter(assigneeOptions, assigneeFilter),
     [assigneeFilter, assigneeOptions],
   );
   const backendAssignmentFilter = getBackendAssignmentFilter(resolvedAssigneeFilter);
-  const taskQueryKey = `workspace:${workspaceId}:tasks:board:${backendAssignmentFilter ?? 'everyone'}`;
+  const boardQueryKey = `workspace:${workspaceId}:board-data:${backendAssignmentFilter ?? 'everyone'}`;
 
-  const tasksQuery = useAuthenticatedApiResource({
-    key: taskQueryKey,
+  const boardDataQuery = useAuthenticatedApiResource({
+    key: boardQueryKey,
     load: (accessToken) =>
-      listWorkspaceTasks(
+      getWorkspaceBoardData(
         workspaceId,
         accessToken,
         backendAssignmentFilter ? { assignment: backendAssignmentFilter } : undefined,
       ),
   });
-  const baseTaskItems = tasksQuery.status === 'success' ? tasksQuery.data.tasks : [];
+  const members = boardDataQuery.status === 'success' ? boardDataQuery.data.members : null;
+  const assigneeOptionsWithMembers = useMemo(
+    () => buildBoardAssigneeOptions(members, auth.user),
+    [auth.user, members],
+  );
+  const resolvedAssigneeFilterWithMembers = useMemo(
+    () => resolveBoardAssigneeFilter(assigneeOptionsWithMembers, assigneeFilter),
+    [assigneeFilter, assigneeOptionsWithMembers],
+  );
+  const backendAssignmentFilterWithMembers = getBackendAssignmentFilter(
+    resolvedAssigneeFilterWithMembers,
+  );
+  const taskQueryKey = `workspace:${workspaceId}:tasks:board:${backendAssignmentFilterWithMembers ?? 'everyone'}`;
+  const baseTaskItems = boardDataQuery.status === 'success' ? boardDataQuery.data.tasks : [];
   const taskItems =
     taskItemsState.key === taskQueryKey
       ? mergeTaskListOverlay(baseTaskItems, taskItemsState.overlay)
@@ -112,7 +106,7 @@ export default function WorkspaceBoardPage() {
   }, []);
 
   useEffect(() => {
-    if (workspaceQuery.status !== 'success') {
+    if (boardDataQuery.status !== 'success') {
       setActionOverride(null);
       return;
     }
@@ -126,49 +120,28 @@ export default function WorkspaceBoardPage() {
     return () => {
       setActionOverride(null);
     };
-  }, [openCreateTaskModal, setActionOverride, workspaceQuery.status]);
+  }, [boardDataQuery.status, openCreateTaskModal, setActionOverride]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'production') {
       return;
     }
 
-    if (workspaceQuery.status === 'error') {
-      console.error('Failed to load board workspace details.', workspaceQuery.error);
+    if (boardDataQuery.status === 'error') {
+      console.error('Failed to load workspace board data.', boardDataQuery.error);
     }
-
-    if (tasksQuery.status === 'error') {
-      console.error('Failed to load board tasks.', tasksQuery.error);
-    }
-  }, [
-    tasksQuery.error,
-    tasksQuery.status,
-    workspaceQuery.error,
-    workspaceQuery.status,
-  ]);
+  }, [boardDataQuery.error, boardDataQuery.status]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1520px] flex-col">
-      {workspaceQuery.status === 'loading' || tasksQuery.status === 'loading' ? (
+      {boardDataQuery.status === 'loading' ? (
         <BoardLoadingState />
       ) : null}
 
-      {workspaceQuery.status === 'error' ? (
-        <PageStatusCard
-          title="Workspace unavailable"
-          description={GENERIC_WORKSPACE_ERROR_MESSAGE}
-          tone="danger"
-          actionLabel="Retry board"
-          onAction={() => {
-            window.location.reload();
-          }}
-        />
-      ) : null}
-
-      {tasksQuery.status === 'error' ? (
+      {boardDataQuery.status === 'error' ? (
         <PageStatusCard
           title="Board unavailable"
-          description={GENERIC_TASKS_ERROR_MESSAGE}
+          description={GENERIC_BOARD_ERROR_MESSAGE}
           tone="danger"
           actionLabel="Retry board"
           onAction={() => {
@@ -177,33 +150,25 @@ export default function WorkspaceBoardPage() {
         />
       ) : null}
 
-      {workspaceQuery.status === 'success' && tasksQuery.status === 'success' ? (
+      {boardDataQuery.status === 'success' ? (
         <div className="flex flex-col gap-3" data-perf-board-ready="true">
-          {membersQuery.status === 'error' ? (
-            <PageSurface
-              eyebrow="Limited filters"
-              title="Members unavailable"
-              description="Tasks are available, but member-specific filters are unavailable until workspace members can be loaded."
-            />
-          ) : null}
-
-          {tasksQuery.data.hasMore ? (
+          {boardDataQuery.data.hasMore ? (
             <PageSurface
               eyebrow="Task list capped"
-              title={`Showing the newest ${tasksQuery.data.limit} tasks`}
+              title={`Showing the newest ${boardDataQuery.data.limit} tasks`}
               description="This workspace has more tasks than the current response includes. Refine the board filters to narrow the list."
             />
           ) : null}
 
           <BoardPage
-            workspace={workspaceQuery.data.workspace}
+            workspace={boardDataQuery.data.workspace}
             tasks={taskItems}
-            assigneeFilter={resolvedAssigneeFilter}
-            assigneeOptions={assigneeOptions}
+            assigneeFilter={resolvedAssigneeFilterWithMembers}
+            assigneeOptions={assigneeOptionsWithMembers}
             statusFilter={statusFilter}
             statusOptions={STATUS_OPTIONS}
             currentUserId={auth.user.id}
-            membersUnavailable={membersQuery.status === 'error'}
+            membersUnavailable={false}
             onStatusChange={setStatusFilter}
             onAssigneeChange={setAssigneeFilter}
             onTaskOpen={openTaskDetailsModal}
@@ -214,8 +179,8 @@ export default function WorkspaceBoardPage() {
       <CreateTaskModal
         open={isCreateTaskOpen}
         workspaceId={workspaceId}
-        members={membersQuery.status === 'success' ? membersQuery.data.members : null}
-        membersUnavailable={membersQuery.status === 'error'}
+        members={members}
+        membersUnavailable={boardDataQuery.status !== 'success'}
         onClose={closeCreateTaskModal}
         onCreated={(task) => {
           setTaskItemsState((current) => ({
@@ -228,7 +193,7 @@ export default function WorkspaceBoardPage() {
               {
                 shouldInclude: matchesTaskAssignmentFilter(
                   task,
-                  backendAssignmentFilter,
+                  backendAssignmentFilterWithMembers,
                   auth.user.id,
                 ),
               },
@@ -241,8 +206,8 @@ export default function WorkspaceBoardPage() {
         open={selectedTaskId !== null}
         taskId={selectedTaskId}
         workspaceId={workspaceId}
-        members={membersQuery.status === 'success' ? membersQuery.data.members : null}
-        membersUnavailable={membersQuery.status === 'error'}
+        members={members}
+        membersUnavailable={boardDataQuery.status !== 'success'}
         onClose={closeTaskDetailsModal}
         onTaskChanged={(task) => {
           setTaskItemsState((current) => ({
@@ -255,7 +220,7 @@ export default function WorkspaceBoardPage() {
               {
                 shouldInclude: matchesTaskAssignmentFilter(
                   task,
-                  backendAssignmentFilter,
+                  backendAssignmentFilterWithMembers,
                   auth.user.id,
                 ),
               },

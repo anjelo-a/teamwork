@@ -6,6 +6,7 @@ import type {
   PublicWorkspaceInvitationLookup,
   PublicWorkspaceShareLinkLookup,
   RegisterResponse,
+  WorkspaceBoardDataResponse,
   UserInvitationsResponse,
   TaskDeleteResponse,
   TaskListResponse,
@@ -32,6 +33,7 @@ import {
   parseRegisterResponse,
   parseUserInvitationsResponse,
   parseWorkspaceDeleteResponse,
+  parseWorkspaceBoardDataResponse,
   parseWorkspaceInvitationResponse,
   parseWorkspaceMemberResponse,
   parseWorkspaceMemberRemovalResponse,
@@ -121,6 +123,29 @@ export async function getWorkspaceDetails(
   return apiRequest(`/workspaces/${workspaceId}`, {
     accessToken,
     parser: parseWorkspaceResponse,
+  });
+}
+
+export async function getWorkspaceBoardData(
+  workspaceId: string,
+  accessToken: string,
+  filters?: {
+    assignment?: TaskAssignmentFilter;
+    dueBucket?: 'past_due' | 'today' | 'upcoming' | 'no_date';
+    referenceDate?: string | null;
+    limit?: number;
+    cursor?: string;
+  },
+): Promise<WorkspaceBoardDataResponse> {
+  const searchParams = buildTaskListSearchParams(filters);
+  const queryString = searchParams.toString();
+  const path = queryString
+    ? `/workspaces/${workspaceId}/board-data?${queryString}`
+    : `/workspaces/${workspaceId}/board-data`;
+
+  return apiRequest(path, {
+    accessToken,
+    parser: parseWorkspaceBoardDataResponse,
   });
 }
 
@@ -313,14 +338,13 @@ export async function listWorkspaceTasks(
   accessToken: string,
   filters?: {
     assignment?: TaskAssignmentFilter;
+    dueBucket?: 'past_due' | 'today' | 'upcoming' | 'no_date';
+    referenceDate?: string | null;
+    limit?: number;
+    cursor?: string;
   },
 ): Promise<TaskListResponse> {
-  const searchParams = new URLSearchParams();
-
-  if (filters?.assignment) {
-    searchParams.set('assignment', filters.assignment);
-  }
-
+  const searchParams = buildTaskListSearchParams(filters);
   const queryString = searchParams.toString();
   const path = queryString
     ? `/workspaces/${workspaceId}/tasks?${queryString}`
@@ -330,6 +354,42 @@ export async function listWorkspaceTasks(
     accessToken,
     parser: parseTaskListResponse,
   });
+}
+
+function buildTaskListSearchParams(filters?: {
+  assignment?: TaskAssignmentFilter;
+  dueBucket?: 'past_due' | 'today' | 'upcoming' | 'no_date';
+  referenceDate?: string | null;
+  limit?: number;
+  cursor?: string;
+}): URLSearchParams {
+  const searchParams = new URLSearchParams();
+
+  if (!filters) {
+    return searchParams;
+  }
+
+  if (filters.assignment) {
+    searchParams.set('assignment', filters.assignment);
+  }
+
+  if (filters.dueBucket) {
+    searchParams.set('dueBucket', filters.dueBucket);
+  }
+
+  if (filters.referenceDate) {
+    searchParams.set('referenceDate', filters.referenceDate);
+  }
+
+  if (typeof filters.limit === 'number' && Number.isFinite(filters.limit)) {
+    searchParams.set('limit', String(filters.limit));
+  }
+
+  if (filters.cursor) {
+    searchParams.set('cursor', filters.cursor);
+  }
+
+  return searchParams;
 }
 
 export async function createWorkspaceTask(

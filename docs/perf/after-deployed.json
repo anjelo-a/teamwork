@@ -1,4 +1,0 @@
-{
-  "status": "pending",
-  "message": "Generate with RUN_LABEL=after ENV_LABEL=deployed pnpm perf:run"
-}

@@ -1,10 +1,8 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { TaskStatus as PrismaTaskStatus, type Prisma } from '@prisma/client';
-import type { UserSummary } from '@teamwork/types';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { UsersService } from '../users/users.service';
 import { TasksService } from './tasks.service';
 
 describe('TasksService', () => {
@@ -14,12 +12,9 @@ describe('TasksService', () => {
   const otherUserId = 'user-2';
   const taskId = 'task-1';
 
-  type UserRecord = {
+  type TaskActorRecord = {
     id: string;
-    email: string;
     displayName: string;
-    createdAt: Date;
-    updatedAt: Date;
   };
 
   type TaskRecord = {
@@ -33,8 +28,8 @@ describe('TasksService', () => {
     assigneeUserId: string | null;
     createdAt: Date;
     updatedAt: Date;
-    createdByUser: UserRecord;
-    assigneeUser: UserRecord | null;
+    createdByUser: TaskActorRecord;
+    assigneeUser: TaskActorRecord | null;
   };
 
   let prisma: {
@@ -55,20 +50,9 @@ describe('TasksService', () => {
   let membershipsService: {
     requireMembership: jest.Mock;
   };
-  let usersService: {
-    toSummary: jest.Mock;
-  };
   let service: TasksService;
 
   beforeEach(async () => {
-    const toUserSummary = (user: UserRecord): UserSummary => ({
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    });
-
     prisma = {
       task: {
         create: jest.fn(),
@@ -87,23 +71,14 @@ describe('TasksService', () => {
     membershipsService = {
       requireMembership: jest.fn(),
     };
-    usersService = {
-      toSummary: jest.fn((user: UserRecord): UserSummary => toUserSummary(user)),
-    };
-    const defaultUserRecords: UserRecord[] = [
+    const defaultUserRecords: TaskActorRecord[] = [
       {
         id: userId,
-        email: 'owner@example.com',
         displayName: 'Owner',
-        createdAt: new Date('2026-03-27T00:00:00.000Z'),
-        updatedAt: new Date('2026-03-27T00:00:00.000Z'),
       },
       {
         id: otherUserId,
-        email: 'member@example.com',
         displayName: 'Member',
-        createdAt: new Date('2026-03-27T00:00:00.000Z'),
-        updatedAt: new Date('2026-03-27T00:00:00.000Z'),
       },
     ];
     prisma.user.findMany.mockImplementation((args?: { where?: { id?: { in?: string[] } } }) => {
@@ -116,7 +91,6 @@ describe('TasksService', () => {
         TasksService,
         { provide: PrismaService, useValue: prisma },
         { provide: MembershipsService, useValue: membershipsService },
-        { provide: UsersService, useValue: usersService },
       ],
     }).compile();
 
@@ -212,13 +186,14 @@ describe('TasksService', () => {
       expect.objectContaining({
         where: { workspaceId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: 201,
+        take: 51,
       }),
     );
     expect(result).toEqual({
       tasks: [expect.objectContaining({ id: taskId })],
-      limit: 200,
+      limit: 50,
       hasMore: false,
+      nextCursor: null,
     });
   });
 
@@ -240,19 +215,20 @@ describe('TasksService', () => {
           },
         },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: 201,
+        take: 51,
       }),
     );
     expect(result).toEqual({
       tasks: [expect.objectContaining({ id: taskId })],
-      limit: 200,
+      limit: 50,
       hasMore: false,
+      nextCursor: null,
     });
   });
 
   it('exposes when a task list is truncated by the response limit', async () => {
     prisma.task.findMany.mockResolvedValueOnce(
-      Array.from({ length: 201 }, (_, index) =>
+      Array.from({ length: 51 }, (_, index) =>
         buildTaskRecord({
           id: `task-${index + 1}`,
           createdAt: new Date(`2026-04-${String((index % 28) + 1).padStart(2, '0')}T00:00:00.000Z`),
@@ -265,9 +241,53 @@ describe('TasksService', () => {
       currentUserId: userId,
     });
 
-    expect(result.tasks).toHaveLength(200);
-    expect(result.limit).toBe(200);
+    expect(result.tasks).toHaveLength(50);
+    expect(result.limit).toBe(50);
     expect(result.hasMore).toBe(true);
+    expect(result.nextCursor).toBe('task-50');
+  });
+
+  it('supports caller-defined limit values for task listing', async () => {
+    prisma.task.findMany.mockResolvedValueOnce(
+      Array.from({ length: 26 }, (_, index) =>
+        buildTaskRecord({
+          id: `task-limit-${index + 1}`,
+        }),
+      ),
+    );
+
+    const result = await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      limit: 25,
+    });
+
+    expect(prisma.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 26,
+      }),
+    );
+    expect(result.limit).toBe(25);
+    expect(result.tasks).toHaveLength(25);
+    expect(result.hasMore).toBe(true);
+    expect(result.nextCursor).toBe('task-limit-25');
+  });
+
+  it('applies cursor pagination when a cursor is provided', async () => {
+    prisma.task.findMany.mockResolvedValueOnce([buildTaskRecord()]);
+
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      cursor: taskId,
+    });
+
+    expect(prisma.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: { id: taskId },
+        skip: 1,
+      }),
+    );
   });
 
   it('reuses workspace-scoped listing when the user inbox is filtered to one workspace', async () => {
@@ -458,7 +478,7 @@ describe('TasksService', () => {
             equals: new Date('2026-04-02T00:00:00.000Z'),
           },
         },
-        take: 201,
+        take: 51,
       }),
     );
   });
@@ -703,17 +723,11 @@ describe('TasksService', () => {
   function buildTaskRecord(overrides: Partial<TaskRecord> = {}): TaskRecord {
     const createdByUser = {
       id: userId,
-      email: 'owner@example.com',
       displayName: 'Owner',
-      createdAt: new Date('2026-03-27T00:00:00.000Z'),
-      updatedAt: new Date('2026-03-27T00:00:00.000Z'),
     };
     const assigneeUser = {
       id: otherUserId,
-      email: 'member@example.com',
       displayName: 'Member',
-      createdAt: new Date('2026-03-27T00:00:00.000Z'),
-      updatedAt: new Date('2026-03-27T00:00:00.000Z'),
     };
 
     return {

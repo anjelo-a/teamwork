@@ -6,8 +6,10 @@ import type {
   PublicWorkspaceInvitationLookup,
   PublicWorkspaceShareLinkLookup,
   RegisterResponse,
+  WorkspaceBoardDataResponse,
   TaskListResponse,
   TaskResponse,
+  TaskActorSummary,
   UserSummary,
   UserInvitationsResponse,
   WorkspaceInvitationSummary,
@@ -51,6 +53,21 @@ export function parseWorkspaceResponse(value: unknown): WorkspaceResponse {
 
   return {
     workspace: parseWorkspaceDetails(record['workspace']),
+  };
+}
+
+export function parseWorkspaceBoardDataResponse(
+  value: unknown,
+): WorkspaceBoardDataResponse {
+  const record = readRecord(value);
+
+  return {
+    workspace: parseWorkspaceDetails(record['workspace']),
+    members: readArray(record['members'], parseWorkspaceMemberDetail),
+    tasks: readArray(record['tasks'], parseTaskSummary),
+    limit: readNumber(record['limit']),
+    hasMore: readBoolean(record['hasMore']),
+    nextCursor: readNullableString(record['nextCursor']),
   };
 }
 
@@ -184,6 +201,7 @@ export function parseTaskListResponse(value: unknown): TaskListResponse {
     tasks: readArray(record['tasks'], parseTaskSummary),
     limit: readNumber(record['limit']),
     hasMore: readBoolean(record['hasMore']),
+    nextCursor: readNullableString(record['nextCursor']),
   };
 }
 
@@ -354,8 +372,17 @@ function parseTaskSummary(value: unknown): TaskListResponse['tasks'][number] {
     assigneeUserId: readNullableString(record['assigneeUserId']),
     createdAt: readString(record['createdAt']),
     updatedAt: readString(record['updatedAt']),
-    createdByUser: parseUserSummary(record['createdByUser']),
-    assigneeUser: readNullable(record['assigneeUser'], parseUserSummary),
+    createdByUser: parseTaskActorSummary(record['createdByUser']),
+    assigneeUser: readNullable(record['assigneeUser'], parseTaskActorSummary),
+  };
+}
+
+function parseTaskActorSummary(value: unknown): TaskActorSummary {
+  const record = readRecord(value);
+
+  return {
+    id: readString(record['id']),
+    displayName: readString(record['displayName']),
   };
 }
 
