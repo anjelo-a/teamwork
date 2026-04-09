@@ -25,8 +25,8 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const ttl = configService.get<number>('THROTTLE_TTL_MS', 60_000);
-        const limit = configService.get<number>('THROTTLE_LIMIT', 500);
+        const ttl = configService.getOrThrow<number>('THROTTLE_TTL_MS');
+        const limit = configService.getOrThrow<number>('THROTTLE_LIMIT');
 
         return [
           {

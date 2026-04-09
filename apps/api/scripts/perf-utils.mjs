@@ -6,6 +6,17 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(SCRIPT_DIR, '../../..');
 export const PERF_OUTPUT_DIR = path.join(REPO_ROOT, 'docs', 'perf');
 
+export class HttpRequestError extends Error {
+  constructor({ method, endpoint, status, message, responseBody }) {
+    super(`${method} ${endpoint} failed (${status}): ${message}`);
+    this.name = 'HttpRequestError';
+    this.method = method;
+    this.endpoint = endpoint;
+    this.status = status;
+    this.responseBody = responseBody;
+  }
+}
+
 export function getEnvString(name, fallback) {
   const value = process.env[name];
 
@@ -89,7 +100,13 @@ export async function requestJson(baseUrl, endpoint, options = {}) {
       json && typeof json === 'object' && !Array.isArray(json) && typeof json.message === 'string'
         ? json.message
         : response.statusText;
-    throw new Error(`${method} ${endpoint} failed (${response.status}): ${message}`);
+    throw new HttpRequestError({
+      method,
+      endpoint,
+      status: response.status,
+      message,
+      responseBody: json,
+    });
   }
 
   return json;
@@ -167,4 +184,3 @@ export function createAuthHeaders(accessToken) {
     Authorization: `Bearer ${accessToken}`,
   };
 }
-
