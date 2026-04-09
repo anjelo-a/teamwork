@@ -135,6 +135,7 @@ export async function getWorkspaceBoardData(
     referenceDate?: string | null;
     limit?: number;
     cursor?: string;
+    includeMembers?: boolean;
   },
 ): Promise<WorkspaceBoardDataResponse> {
   const searchParams = buildTaskListSearchParams(filters);
@@ -342,6 +343,7 @@ export async function listWorkspaceTasks(
     referenceDate?: string | null;
     limit?: number;
     cursor?: string;
+    includeMembers?: boolean;
   },
 ): Promise<TaskListResponse> {
   const searchParams = buildTaskListSearchParams(filters);
@@ -362,6 +364,7 @@ function buildTaskListSearchParams(filters?: {
   referenceDate?: string | null;
   limit?: number;
   cursor?: string;
+  includeMembers?: boolean;
 }): URLSearchParams {
   const searchParams = new URLSearchParams();
 
@@ -387,6 +390,10 @@ function buildTaskListSearchParams(filters?: {
 
   if (filters.cursor) {
     searchParams.set('cursor', filters.cursor);
+  }
+
+  if (typeof filters.includeMembers === 'boolean') {
+    searchParams.set('includeMembers', String(filters.includeMembers));
   }
 
   return searchParams;

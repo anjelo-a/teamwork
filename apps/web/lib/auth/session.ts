@@ -1,4 +1,4 @@
-const ACCESS_TOKEN_STORAGE_KEY = 'teamwork.accessToken';
+import { ACCESS_TOKEN_COOKIE_KEY, ACCESS_TOKEN_STORAGE_KEY } from './session-constants';
 
 export function getStoredAccessToken(): string | null {
   if (typeof window === 'undefined') {
@@ -15,6 +15,7 @@ export function setStoredAccessToken(token: string): void {
   }
 
   window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+  document.cookie = `${ACCESS_TOKEN_COOKIE_KEY}=${encodeURIComponent(token)}; Path=/; Max-Age=604800; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
 }
 
 export function clearStoredAccessToken(): void {
@@ -23,4 +24,5 @@ export function clearStoredAccessToken(): void {
   }
 
   window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  document.cookie = `${ACCESS_TOKEN_COOKIE_KEY}=; Path=/; Max-Age=0; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
 }

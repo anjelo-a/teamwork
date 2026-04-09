@@ -24,12 +24,6 @@ export function BoardTaskCard({ task, onOpen }: BoardTaskCardProps) {
             {task.title}
           </h4>
 
-          {task.description ? (
-            <p className="mt-[0.75rem] line-clamp-2 text-[0.875rem] leading-[1.5rem] text-muted">
-              {task.description}
-            </p>
-          ) : null}
-
           <div className="mt-[0.875rem] flex flex-wrap items-center justify-between gap-x-[1rem] gap-y-[0.25rem] text-[0.8125rem] font-medium text-muted">
             <TaskMeta label={task.assigneeUser?.displayName ?? 'Unassigned'} />
             <TaskMeta label={`By ${task.createdByUser.displayName}`} />

@@ -64,6 +64,7 @@ export function parseWorkspaceBoardDataResponse(
   return {
     workspace: parseWorkspaceDetails(record['workspace']),
     members: readArray(record['members'], parseWorkspaceMemberDetail),
+    membersLoaded: readBoolean(record['membersLoaded']),
     tasks: readArray(record['tasks'], parseTaskSummary),
     limit: readNumber(record['limit']),
     hasMore: readBoolean(record['hasMore']),

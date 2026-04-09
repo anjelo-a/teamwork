@@ -172,6 +172,7 @@ export interface JwtAccessTokenPayload {
 export interface WorkspaceBoardDataResponse {
   workspace: WorkspaceDetails;
   members: WorkspaceMemberDetail[];
+  membersLoaded: boolean;
   tasks: TaskSummary[];
   limit: number;
   hasMore: boolean;

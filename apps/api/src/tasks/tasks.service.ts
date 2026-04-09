@@ -68,10 +68,12 @@ type TaskListRecord = Prisma.TaskGetPayload<{
 interface ListTasksForWorkspaceInput extends TaskListFilters {
   workspaceId: string;
   currentUserId: string;
+  includeDescription?: boolean;
 }
 
 interface ListTasksForUserInput extends TaskListFilters {
   currentUserId: string;
+  includeDescription?: boolean;
 }
 
 interface TaskRepository {
@@ -163,13 +165,14 @@ export class TasksService {
 
     return this.listTasks({
       currentUserId,
+      includeDescription: true,
       ...filters,
     });
   }
 
   private async listTasks(input: ListTasksForUserInput): Promise<TaskListResponse> {
     const limit = this.resolveTaskListLimit(input.limit);
-    const tasks = await toTaskDatabase(this.prisma).task.findMany({
+    const taskRecords = await toTaskDatabase(this.prisma).task.findMany({
       where: this.buildTaskListWhere(input),
       select: taskListSelect,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -182,14 +185,23 @@ export class TasksService {
         : {}),
     });
 
-    const hasMore = tasks.length > limit;
-    const visibleTasks = hasMore ? tasks.slice(0, limit) : tasks;
+    const hasMore = taskRecords.length > limit;
+    const visibleTasks = hasMore ? taskRecords.slice(0, limit) : taskRecords;
     const usersById = await this.loadTaskListUsers(visibleTasks);
     const lastVisibleTask = visibleTasks.at(-1);
     const nextCursor = hasMore && lastVisibleTask ? lastVisibleTask.id : null;
 
+    const summaries = visibleTasks.map((task) => this.toSummaryFromListRecord(task, usersById));
+    const serializedTasks =
+      input.includeDescription === false
+        ? summaries.map((task) => ({
+            ...task,
+            description: null,
+          }))
+        : summaries;
+
     return {
-      tasks: visibleTasks.map((task) => this.toSummaryFromListRecord(task, usersById)),
+      tasks: serializedTasks,
       limit,
       hasMore,
       nextCursor,

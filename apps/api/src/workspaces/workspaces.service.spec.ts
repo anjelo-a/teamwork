@@ -228,21 +228,60 @@ describe('WorkspacesService', () => {
       workspaceId: 'workspace-1',
       currentUserId: 'user-1',
       assignment: 'everyone',
+      includeMembers: true,
       limit: 50,
     });
 
     expect(result.workspace.id).toBe('workspace-1');
     expect(result.members).toHaveLength(1);
+    expect(result.membersLoaded).toBe(true);
     expect(result.tasks).toEqual([]);
     expect(tasksService.listTasksForWorkspace).toHaveBeenCalledWith({
       workspaceId: 'workspace-1',
       currentUserId: 'user-1',
+      includeDescription: false,
       dueBucket: undefined,
       assignment: 'everyone',
       referenceDate: undefined,
       limit: 50,
       cursor: undefined,
     });
+  });
+
+  it('skips loading workspace members for board data when includeMembers is false', async () => {
+    prisma.workspaceMembership.findUnique.mockResolvedValueOnce({
+      id: 'membership-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      role: 'owner',
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      workspace: {
+        id: 'workspace-1',
+        name: 'Product Team',
+        slug: 'product-team',
+        createdByUserId: 'user-1',
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-26T00:00:00.000Z'),
+      },
+    });
+    prisma.workspaceMembership.count.mockResolvedValueOnce(3);
+    prisma.workspaceInvitation.count.mockResolvedValueOnce(2);
+    tasksService.listTasksForWorkspace.mockResolvedValueOnce({
+      tasks: [],
+      limit: 50,
+      hasMore: false,
+      nextCursor: null,
+    });
+
+    const result = await service.getWorkspaceBoardDataForUser({
+      workspaceId: 'workspace-1',
+      currentUserId: 'user-1',
+      includeMembers: false,
+    });
+
+    expect(result.members).toEqual([]);
+    expect(result.membersLoaded).toBe(false);
+    expect(membershipsService.listWorkspaceMembers).not.toHaveBeenCalled();
   });
 
   it('allows owners to delete a workspace', async () => {

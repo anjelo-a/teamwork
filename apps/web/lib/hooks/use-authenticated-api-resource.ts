@@ -6,6 +6,9 @@ import { useAuthSession } from '@/lib/auth/auth-session-provider';
 interface UseAuthenticatedApiResourceOptions<T> {
   key: string;
   load: (accessToken: string) => Promise<T>;
+  cacheTtlMs?: number;
+  useStaleWhileRevalidate?: boolean;
+  initialData?: T | null;
 }
 
 type ResourceState<T> =
@@ -40,9 +43,20 @@ type StoredErrorState = StoredResourceState & {
 
 type StoredResourceResult<T> = StoredLoadingState | StoredSuccessState<T> | StoredErrorState;
 
+const inMemoryResourceCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    data: unknown;
+  }
+>();
+
 export function useAuthenticatedApiResource<T>({
   key,
   load,
+  cacheTtlMs = 0,
+  useStaleWhileRevalidate = false,
+  initialData = null,
 }: UseAuthenticatedApiResourceOptions<T>): ResourceState<T> {
   const { status, accessToken } = useAuthSession();
   const loadRef = useRef(load);
@@ -64,7 +78,33 @@ export function useAuthenticatedApiResource<T>({
       return;
     }
 
-    const requestToken = Symbol(key);
+    const cacheKey = `${key}::${accessToken}`;
+    const cachedEntry = inMemoryResourceCache.get(cacheKey);
+    const now = Date.now();
+    const hasFreshCachedEntry = Boolean(cachedEntry && cachedEntry.expiresAt > now);
+    const shouldUseInitialData = initialData !== null && initialData !== undefined;
+
+    if (hasFreshCachedEntry && cachedEntry) {
+      setState({
+        requestKey: key,
+        status: 'success',
+        data: cachedEntry.data as T,
+        error: null,
+      });
+
+      if (!useStaleWhileRevalidate) {
+        return;
+      }
+    } else if (shouldUseInitialData) {
+      setState({
+        requestKey: key,
+        status: 'success',
+        data: initialData,
+        error: null,
+      });
+    }
+
+    const requestToken = Symbol(cacheKey);
     requestTokenRef.current = requestToken;
 
     void (async () => {
@@ -73,6 +113,13 @@ export function useAuthenticatedApiResource<T>({
 
         if (requestTokenRef.current !== requestToken) {
           return;
+        }
+
+        if (cacheTtlMs > 0) {
+          inMemoryResourceCache.set(cacheKey, {
+            expiresAt: Date.now() + cacheTtlMs,
+            data,
+          });
         }
 
         setState({
@@ -100,7 +147,7 @@ export function useAuthenticatedApiResource<T>({
         requestTokenRef.current = null;
       }
     };
-  }, [accessToken, key, status]);
+  }, [accessToken, cacheTtlMs, initialData, key, status, useStaleWhileRevalidate]);
 
   if (
     status !== 'authenticated' ||

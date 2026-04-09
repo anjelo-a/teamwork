@@ -121,9 +121,30 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 }
 
 async function resolveSessionState(tokenOverride?: string | null): Promise<AuthSessionResult> {
-    const token = tokenOverride ?? getStoredAccessToken();
+  const token = tokenOverride ?? getStoredAccessToken();
 
-    if (!token) {
+  if (!token) {
+    return {
+      status: 'unauthenticated',
+      auth: EMPTY_AUTH,
+      accessToken: null,
+      errorMessage: null,
+    };
+  }
+
+  try {
+    // Ensure SSR-aware auth cookie stays aligned with localStorage token for future server renders.
+    setStoredAccessToken(token);
+    const nextAuth = await getAuthMe(token);
+    return {
+      status: 'authenticated',
+      auth: nextAuth,
+      accessToken: token,
+      errorMessage: null,
+    };
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      clearStoredAccessToken();
       return {
         status: 'unauthenticated',
         auth: EMPTY_AUTH,
@@ -132,32 +153,13 @@ async function resolveSessionState(tokenOverride?: string | null): Promise<AuthS
       };
     }
 
-    try {
-      const nextAuth = await getAuthMe(token);
-      return {
-        status: 'authenticated',
-        auth: nextAuth,
-        accessToken: token,
-        errorMessage: null,
-      };
-    } catch (error) {
-      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-        clearStoredAccessToken();
-        return {
-          status: 'unauthenticated',
-          auth: EMPTY_AUTH,
-          accessToken: null,
-          errorMessage: null,
-        };
-      }
-
-      return {
-        status: 'error',
-        auth: EMPTY_AUTH,
-        accessToken: token,
-        errorMessage: error instanceof Error ? error.message : 'Session request failed.',
-      };
-    }
+    return {
+      status: 'error',
+      auth: EMPTY_AUTH,
+      accessToken: token,
+      errorMessage: error instanceof Error ? error.message : 'Session request failed.',
+    };
+  }
 }
 
 function applyResolvedSessionState(

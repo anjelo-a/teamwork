@@ -18,12 +18,12 @@ import { WorkspaceRoleGuard } from '../common/auth/workspace-role.guard';
 import { WorkspaceRoles } from '../common/auth/workspace-roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
-import { ListTaskFiltersDto } from '../tasks/dto/list-task-filters.dto';
 import { MembershipsService } from '../memberships/memberships.service';
 import { WorkspaceInvitationsService } from '../workspace-invitations/workspace-invitations.service';
 import { AddWorkspaceMemberDto } from './dto/add-workspace-member.dto';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceMemberDto } from './dto/update-workspace-member.dto';
+import { WorkspaceBoardFiltersDto } from './dto/workspace-board-filters.dto';
 import { UpdateWorkspaceShareLinkDto } from './dto/update-workspace-share-link.dto';
 import { WorkspacesService } from './workspaces.service';
 
@@ -66,9 +66,9 @@ export class WorkspacesController {
   async getWorkspaceBoardData(
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
-    @Query() filters: ListTaskFiltersDto,
+    @Query() filters: WorkspaceBoardFiltersDto,
   ): Promise<WorkspaceBoardDataResponse> {
-    const { workspaceId: requestedWorkspaceId, ...taskFilters } = filters;
+    const { workspaceId: requestedWorkspaceId, includeMembers, ...taskFilters } = filters;
 
     if (requestedWorkspaceId && requestedWorkspaceId !== workspaceId) {
       throw new BadRequestException('workspaceId query param must match the route workspaceId.');
@@ -77,6 +77,7 @@ export class WorkspacesController {
     return this.workspacesService.getWorkspaceBoardDataForUser({
       workspaceId,
       currentUserId: user.id,
+      ...(includeMembers !== undefined ? { includeMembers } : {}),
       ...taskFilters,
     });
   }

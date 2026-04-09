@@ -188,18 +188,23 @@ export class WorkspacesService {
   async getWorkspaceBoardDataForUser(input: {
     workspaceId: string;
     currentUserId: string;
+    includeMembers?: boolean;
     dueBucket?: TaskDueBucket;
     assignment?: TaskAssignmentFilter;
     referenceDate?: string | null;
     limit?: number;
     cursor?: string;
   }): Promise<WorkspaceBoardDataResponse> {
+    const includeMembers = input.includeMembers ?? true;
     const [workspace, members, taskList] = await Promise.all([
       this.getWorkspaceForUser(input.workspaceId, input.currentUserId),
-      this.membershipsService.listWorkspaceMembers(input.workspaceId),
+      includeMembers
+        ? this.membershipsService.listWorkspaceMembers(input.workspaceId)
+        : Promise.resolve([]),
       this.tasksService.listTasksForWorkspace({
         workspaceId: input.workspaceId,
         currentUserId: input.currentUserId,
+        includeDescription: false,
         ...(input.dueBucket !== undefined ? { dueBucket: input.dueBucket } : {}),
         ...(input.assignment !== undefined ? { assignment: input.assignment } : {}),
         ...(input.referenceDate !== undefined ? { referenceDate: input.referenceDate } : {}),
@@ -211,6 +216,7 @@ export class WorkspacesService {
     return {
       workspace,
       members,
+      membersLoaded: includeMembers,
       ...taskList,
     };
   }
