@@ -4,11 +4,11 @@ This report compares baseline and after captures for local and deployed environm
 
 ## Local Delta
 
-- Missing one or both artifacts. Run perf capture for both baseline and after before generating summary.
+- Missing one or both artifacts. Run `pnpm perf:run` for both baseline and after captures before generating summary.
 
 ## Deployed Delta
 
-- Missing one or both artifacts. Run perf capture for both baseline and after before generating summary.
+- Missing one or both artifacts. Run `pnpm perf:run` for both baseline and after captures before generating summary.
 
 ## Resume Bullet Drafts
 

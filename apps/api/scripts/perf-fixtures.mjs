@@ -2,6 +2,7 @@ import {
   createAuthHeaders,
   getEnvInteger,
   getEnvString,
+  HttpRequestError,
   requestJson,
   stripTrailingSlash,
   toIsoTimestamp,
@@ -30,7 +31,8 @@ export async function prepareFixtures(options = {}) {
     getEnvString('BENCH_WORKSPACE_NAME', DEFAULT_BENCH_WORKSPACE_NAME);
   const targetTaskCount =
     options.targetTaskCount ?? getEnvInteger('BENCH_TASK_COUNT', DEFAULT_BENCH_TASK_COUNT);
-  const taskPrefix = options.taskPrefix ?? getEnvString('BENCH_TASK_PREFIX', DEFAULT_BENCH_TASK_PREFIX);
+  const taskPrefix =
+    options.taskPrefix ?? getEnvString('BENCH_TASK_PREFIX', DEFAULT_BENCH_TASK_PREFIX);
 
   const auth = await registerOrLogin({
     apiBaseUrl,
@@ -69,7 +71,9 @@ export async function prepareFixtures(options = {}) {
   }
 
   const refreshedTasks = await listWorkspaceTasks(apiBaseUrl, workspaceId, auth.accessToken);
-  const refreshedBenchmarkTasks = refreshedTasks.filter((task) => isBenchmarkTask(task, taskPrefix));
+  const refreshedBenchmarkTasks = refreshedTasks.filter((task) =>
+    isBenchmarkTask(task, taskPrefix),
+  );
 
   if (refreshedBenchmarkTasks.length === 0) {
     throw new Error('Fixture setup completed, but no benchmark task was found.');
@@ -107,9 +111,7 @@ async function registerOrLogin(input) {
 
     return validateAuthPayload(registerResponse);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-
-    if (!message.includes('(409)')) {
+    if (!(error instanceof HttpRequestError) || error.status !== 409) {
       throw error;
     }
 

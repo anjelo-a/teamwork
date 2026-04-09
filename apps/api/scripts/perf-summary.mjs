@@ -76,7 +76,7 @@ function buildComparison(baseline, after) {
     return {
       complete: false,
       reason:
-        'Missing one or both artifacts. Run perf capture for both baseline and after before generating summary.',
+        'Missing one or both artifacts. Run `pnpm perf:run` for both baseline and after captures before generating summary.',
     };
   }
 
@@ -145,12 +145,12 @@ function toEndpointMap(endpoints) {
 function isCompleteArtifact(value) {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      value.backend &&
-      Array.isArray(value.backend.endpoints) &&
-      value.frontend &&
-      value.frontend.metrics &&
-      value.frontend.metrics.boardReadyMs,
+    typeof value === 'object' &&
+    value.backend &&
+    Array.isArray(value.backend.endpoints) &&
+    value.frontend &&
+    value.frontend.metrics &&
+    value.frontend.metrics.boardReadyMs,
   );
 }
 
@@ -197,12 +197,12 @@ function buildResumeBullets(localComparison, deployedComparison) {
 
   const bullets = [
     `- Built a repeatable performance benchmarking workflow (NestJS + Next.js + Playwright + autocannon) that tracks baseline vs after metrics across local and deployed environments.`,
-    `- Improved board page load experience by ${formatReduction(localFrontend)} (local p95) and ${formatReduction(deployedFrontend)} (deployed p95) using deterministic, script-driven runs.`,
+    `- Board page load p95 ${describeLatencyDelta(localFrontend)} (local) and ${describeLatencyDelta(deployedFrontend)} (deployed) using deterministic, script-driven runs.`,
   ];
 
   if (deployedTaskInbox) {
     bullets.push(
-      `- Reduced deployed p95 latency for task inbox endpoint by ${formatReduction(
+      `- Deployed p95 latency for task inbox endpoint ${describeLatencyDelta(
         deployedTaskInbox.p95DeltaPercent,
       )} while preserving endpoint correctness under concurrent load.`,
     );
@@ -210,7 +210,7 @@ function buildResumeBullets(localComparison, deployedComparison) {
 
   if (deployedWorkspaceTasks) {
     bullets.push(
-      `- Improved deployed p95 latency for workspace task listing by ${formatReduction(
+      `- Deployed p95 latency for workspace task listing ${describeLatencyDelta(
         deployedWorkspaceTasks.p95DeltaPercent,
       )} with quantified before/after evidence.`,
     );
@@ -256,12 +256,16 @@ function formatSignedPercent(value) {
   return `${round(value)}%`;
 }
 
-function formatReduction(percentDelta) {
-  if (percentDelta >= 0) {
-    return `-${Math.abs(round(percentDelta))}% (regression)`;
+function describeLatencyDelta(percentDelta) {
+  if (percentDelta < 0) {
+    return `reduced by ${Math.abs(round(percentDelta))}%`;
   }
 
-  return `${Math.abs(round(percentDelta))}%`;
+  if (percentDelta > 0) {
+    return `increased by +${Math.abs(round(percentDelta))}% (regression)`;
+  }
+
+  return 'showed no meaningful change';
 }
 
 async function runFromCli() {
