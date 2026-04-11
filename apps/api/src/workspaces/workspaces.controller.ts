@@ -224,9 +224,9 @@ export class WorkspacesController {
   @Get(':workspaceId/security-dashboard')
   @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
   @WorkspacePolicy('workspace.security.view')
-  async getWorkspaceSecurityDashboard(
+  getWorkspaceSecurityDashboard(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
-  ): Promise<{ dashboard: WorkspaceSecurityDashboard }> {
+  ): { dashboard: WorkspaceSecurityDashboard } {
     return {
       dashboard: this.securityTelemetryService.getWorkspaceDashboard({ workspaceId }),
     };

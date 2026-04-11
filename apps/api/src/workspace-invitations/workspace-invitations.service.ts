@@ -1158,10 +1158,10 @@ export class WorkspaceInvitationsService {
         ? { actorUserId: details['actorUserId'] }
         : {}),
       ...(typeof details['ipAddress'] === 'string' || details['ipAddress'] === null
-        ? { ipAddress: details['ipAddress'] as string | null }
+        ? { ipAddress: details['ipAddress'] }
         : {}),
       ...(typeof details['userAgent'] === 'string' || details['userAgent'] === null
-        ? { userAgent: details['userAgent'] as string | null }
+        ? { userAgent: details['userAgent'] }
         : {}),
       details,
     });

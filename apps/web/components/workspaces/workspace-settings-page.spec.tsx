@@ -126,8 +126,13 @@ describe('WorkspaceSettingsPage', () => {
 
   it('transfers ownership through the new admin control', async () => {
     const user = userEvent.setup();
-    const ownerMember = MEMBERS[0]!;
-    const memberUser = MEMBERS[1]!;
+    const ownerMember = MEMBERS[0];
+    const memberUser = MEMBERS[1];
+
+    if (!ownerMember || !memberUser) {
+      throw new Error('Expected fixture members to include owner and member.');
+    }
+
     mockedTransferWorkspaceOwnership.mockResolvedValue({
       previousOwnerMembership: {
         ...ownerMember,

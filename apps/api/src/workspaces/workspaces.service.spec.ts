@@ -16,6 +16,13 @@ describe('WorkspacesService', () => {
     role: 'owner' | 'member';
     createdAt: Date;
   };
+  type UserRecord = {
+    id: string;
+    email: string;
+    displayName: string;
+    createdAt: Date;
+    updatedAt: Date;
+  };
 
   let prisma: {
     workspace: {
@@ -89,7 +96,7 @@ describe('WorkspacesService', () => {
         (membership: WorkspaceMembershipRecord): WorkspaceMembershipSummary =>
           toMembershipSummary(membership),
       ),
-      toDetail: jest.fn((membership, user) => ({
+      toDetail: jest.fn((membership: WorkspaceMembershipRecord, user: UserRecord) => ({
         ...toMembershipSummary(membership),
         user: {
           id: user.id,

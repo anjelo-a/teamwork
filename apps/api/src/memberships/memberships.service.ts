@@ -113,7 +113,7 @@ export class MembershipsService {
 
   async removeMember(workspaceId: string, userId: string, actingUserId: string) {
     try {
-      return this.runInSerializableTransaction(async (tx) => {
+      return await this.runInSerializableTransaction(async (tx) => {
         const membership = await this.requireMembership(workspaceId, userId, tx);
         const actingMembership =
           actingUserId === userId
