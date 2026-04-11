@@ -145,6 +145,10 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/teamwork_ci?schema=public
       SHADOW_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/teamwork_ci_shadow?schema=public
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3000
+      THROTTLE_TTL_MS: 60000
+      THROTTLE_LIMIT: 100
+      JWT_SECRET: ci-test-secret
+      ACCESS_TOKEN_TTL_SECONDS: 900
 
     steps:
       - name: Checkout
@@ -163,6 +167,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client (API)
+        run: pnpm --filter @teamwork/api prisma:generate
 
       - name: Create CI databases
         run: |
