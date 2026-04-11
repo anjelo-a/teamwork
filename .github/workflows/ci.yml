@@ -57,3 +57,111 @@ jobs:
 
       - name: Run release gate
         run: pnpm release:gate
+
+  critical-tests:
+    name: Critical Tests (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    needs: release-gate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web-unit
+            command: pnpm --filter @teamwork/web test:cov
+            needs_db: false
+            install_playwright: false
+            coverage_artifact: web-coverage
+            coverage_path: apps/web/coverage
+          - name: api-unit
+            command: pnpm --filter @teamwork/api test:cov
+            needs_db: false
+            install_playwright: false
+            coverage_artifact: api-coverage
+            coverage_path: apps/api/coverage
+          - name: api-integration
+            command: pnpm --filter @teamwork/api test:e2e
+            needs_db: true
+            install_playwright: false
+            coverage_artifact: ''
+            coverage_path: ''
+          - name: web-smoke
+            command: pnpm --filter @teamwork/web test:e2e:smoke
+            needs_db: true
+            install_playwright: true
+            coverage_artifact: ''
+            coverage_path: ''
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/teamwork_ci?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/teamwork_ci_shadow?schema=public
+      NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:3000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create CI databases
+        if: ${{ matrix.needs_db }}
+        run: |
+          psql postgresql://postgres:postgres@127.0.0.1:5432/postgres -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT 'CREATE DATABASE teamwork_ci'
+          WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'teamwork_ci')\gexec
+          SELECT 'CREATE DATABASE teamwork_ci_shadow'
+          WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'teamwork_ci_shadow')\gexec
+          SQL
+
+      - name: Apply API migrations
+        if: ${{ matrix.needs_db }}
+        run: pnpm --filter @teamwork/api prisma:migrate:deploy
+
+      - name: Install Playwright Chromium
+        if: ${{ matrix.install_playwright }}
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run critical-path test command
+        run: ${{ matrix.command }}
+
+      - name: Upload coverage artifact
+        if: ${{ matrix.coverage_artifact != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.coverage_artifact }}
+          path: ${{ matrix.coverage_path }}
+          if-no-files-found: error
+
+      - name: Upload smoke test report
+        if: ${{ matrix.name == 'web-smoke' && always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-smoke-report
+          path: apps/web/test-results/playwright
+          if-no-files-found: warn

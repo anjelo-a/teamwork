@@ -9,8 +9,9 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest --config ./jest.config.cjs",
+    "test:cov": "jest --config ./jest.config.cjs --coverage --coverageReporters=text-summary --coverageReporters=lcov",
     "test:e2e": "playwright test",
-    "test:e2e:smoke": "playwright test --grep \"member management smoke\""
+    "test:e2e:smoke": "pnpm --dir ../api prisma:migrate:deploy && playwright test --grep \"@smoke\" --workers=1"
   },
   "dependencies": {
     "@fontsource-variable/space-grotesk": "^5.2.10",

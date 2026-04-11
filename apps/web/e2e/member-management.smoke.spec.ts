@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-test('member management smoke', async ({ browser, page }) => {
+test('@smoke member management smoke', async ({ browser, page }) => {
   test.setTimeout(120000);
 
   const ownerEmail = createUniqueEmail('owner');
@@ -56,7 +56,7 @@ test('member management smoke', async ({ browser, page }) => {
     throw new Error('Expected member access token after sign-up.');
   }
 
-  const invitationId = await readInvitationId(memberAccessToken, `${ownerName}'s Workspace`);
+  const invitationId = await readInvitationId(memberAccessToken, workspaceId);
   await acceptInvitation(invitationId, memberAccessToken);
 
   await page.goto(`/workspaces/${workspaceId}/members`);
@@ -95,7 +95,7 @@ function createUniqueEmail(prefix: string): string {
   return `${prefix}-${suffix}@example.com`;
 }
 
-async function readInvitationId(accessToken: string, workspaceName: string): Promise<string> {
+async function readInvitationId(accessToken: string, workspaceId: string): Promise<string> {
   const response = await fetch('http://127.0.0.1:3000/users/me/invitations', {
     headers: {
       Accept: 'application/json',
@@ -110,15 +110,15 @@ async function readInvitationId(accessToken: string, workspaceName: string): Pro
   const data = (await response.json()) as {
     invitations?: Array<{
       invitation?: { id?: string };
-      workspace?: { name?: string };
+      workspace?: { id?: string };
     }>;
   };
   const invitation = data.invitations?.find(
-    (item) => item.workspace?.name === workspaceName && typeof item.invitation?.id === 'string',
+    (item) => item.workspace?.id === workspaceId && typeof item.invitation?.id === 'string',
   );
 
   if (!invitation?.invitation?.id) {
-    throw new Error(`Expected invitation for ${workspaceName}.`);
+    throw new Error(`Expected invitation for workspace ${workspaceId}.`);
   }
 
   return invitation.invitation.id;

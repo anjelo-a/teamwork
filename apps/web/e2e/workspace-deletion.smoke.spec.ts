@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
-test('workspace deletion smoke', async ({ page, request }) => {
+test('@smoke workspace deletion smoke', async ({ page, request }) => {
   test.setTimeout(120000);
 
   const ownerEmail = createUniqueEmail('workspace-delete');
