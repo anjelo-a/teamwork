@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteWorkspace, getAuthMe, ApiError } from '@/lib/api/client';
+import { deleteWorkspace, ApiError } from '@/lib/api/client';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
-import { getWorkspaceBoardHref } from '@/lib/app-shell';
+import { resolveWorkspaceBoardRedirect } from '@/lib/auth/workspace-routing';
 import { AppButton } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { FormMessage } from '@/components/ui/form-controls';
@@ -46,12 +46,19 @@ export function DeleteWorkspaceDialog({
 
     try {
       await deleteWorkspace(workspaceId, accessToken);
-      const nextSession = await getAuthMe(accessToken);
-      await refreshSession();
+      const nextSession = await refreshSession();
       onClose();
 
-      const destinationWorkspace = nextSession.activeWorkspace ?? nextSession.workspaces[0] ?? null;
-      router.replace(destinationWorkspace ? getWorkspaceBoardHref(destinationWorkspace.id) : '/');
+      if (nextSession.status === 'unauthenticated') {
+        router.replace('/auth-required');
+        return;
+      }
+
+      const destinationPath =
+        nextSession.status === 'authenticated'
+          ? resolveWorkspaceBoardRedirect(nextSession.auth)
+          : null;
+      router.replace(destinationPath ?? '/');
     } catch (error) {
       setErrorMessage(
         error instanceof ApiError || error instanceof Error

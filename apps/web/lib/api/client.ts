@@ -166,6 +166,21 @@ export async function getWorkspaceDetails(
   });
 }
 
+export async function updateWorkspace(
+  workspaceId: string,
+  accessToken: string,
+  input: {
+    name: string;
+  },
+): Promise<WorkspaceResponse> {
+  return apiRequest(`/workspaces/${workspaceId}`, {
+    accessToken,
+    method: 'PATCH',
+    body: JSON.stringify(input),
+    parser: parseWorkspaceResponse,
+  });
+}
+
 export async function getWorkspaceBoardData(
   workspaceId: string,
   accessToken: string,

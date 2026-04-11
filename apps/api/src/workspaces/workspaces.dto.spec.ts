@@ -3,6 +3,7 @@ import { validate } from 'class-validator';
 import { AddWorkspaceMemberDto } from './dto/add-workspace-member.dto';
 import { UpdateWorkspaceMemberDto } from './dto/update-workspace-member.dto';
 import { UpdateWorkspaceShareLinkDto } from './dto/update-workspace-share-link.dto';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 describe('Workspace member DTOs', () => {
   it('accepts only owner and member when inviting a workspace member', async () => {
@@ -51,6 +52,21 @@ describe('Workspace member DTOs', () => {
     );
     await expect(validate(invalidDto)).resolves.toEqual(
       expect.arrayContaining([expect.objectContaining({ property: 'role' })]),
+    );
+  });
+
+  it('normalizes and validates workspace name updates', async () => {
+    const validDto = plainToInstance(UpdateWorkspaceDto, {
+      name: '  Product    Team  ',
+    });
+    const tooShortDto = plainToInstance(UpdateWorkspaceDto, {
+      name: 'a',
+    });
+
+    await expect(validate(validDto)).resolves.toHaveLength(0);
+    expect(validDto.name).toBe('Product Team');
+    await expect(validate(tooShortDto)).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ property: 'name' })]),
     );
   });
 });

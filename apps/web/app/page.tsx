@@ -6,6 +6,7 @@ import { PageStatusCard } from '@/components/app-shell/page-state';
 import { CreateWorkspaceModal } from '@/components/workspaces/create-workspace-modal';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
 import { getWorkspaceBoardHref } from '@/lib/app-shell';
+import { resolveWorkspaceBoardRedirect } from '@/lib/auth/workspace-routing';
 
 export default function HomePage() {
   const router = useRouter();
@@ -22,13 +23,13 @@ export default function HomePage() {
       return;
     }
 
-    const destinationWorkspace = auth.activeWorkspace ?? auth.workspaces[0];
+    const destinationPath = resolveWorkspaceBoardRedirect(auth);
 
-    if (!destinationWorkspace) {
+    if (!destinationPath) {
       return;
     }
 
-    router.replace(getWorkspaceBoardHref(destinationWorkspace.id));
+    router.replace(destinationPath);
   }, [auth, router, status]);
 
   if (status === 'loading') {

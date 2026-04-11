@@ -25,6 +25,7 @@ import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceMemberDto } from './dto/update-workspace-member.dto';
 import { WorkspaceBoardFiltersDto } from './dto/workspace-board-filters.dto';
 import { UpdateWorkspaceShareLinkDto } from './dto/update-workspace-share-link.dto';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { WorkspacesService } from './workspaces.service';
 
 @Controller('workspaces')
@@ -58,6 +59,19 @@ export class WorkspacesController {
   ) {
     return {
       workspace: await this.workspacesService.getWorkspaceForUser(workspaceId, user.id),
+    };
+  }
+
+  @Patch(':workspaceId')
+  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
+  @WorkspaceRoles('owner')
+  async updateWorkspace(
+    @CurrentUser() user: RequestUser,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Body() dto: UpdateWorkspaceDto,
+  ) {
+    return {
+      workspace: await this.workspacesService.updateWorkspaceName(workspaceId, dto.name, user.id),
     };
   }
 

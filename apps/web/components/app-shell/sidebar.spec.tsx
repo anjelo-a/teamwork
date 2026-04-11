@@ -22,6 +22,10 @@ jest.mock('@/components/workspaces/delete-workspace-dialog', () => ({
   DeleteWorkspaceDialog: () => null,
 }));
 
+jest.mock('@/components/workspaces/rename-workspace-dialog', () => ({
+  RenameWorkspaceDialog: () => null,
+}));
+
 const mockedUseAuthSession = jest.mocked(useAuthSession);
 
 function buildWorkspace(role: 'owner' | 'member'): AuthenticatedWorkspace {
@@ -75,6 +79,7 @@ describe('SidebarNavigation workspace deletion affordance', () => {
       <SidebarNavigation currentPath="/workspaces/workspace-1/board" currentWorkspace={workspace} />,
     );
 
+    expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
   });
 
@@ -86,6 +91,7 @@ describe('SidebarNavigation workspace deletion affordance', () => {
       <SidebarNavigation currentPath="/workspaces/workspace-1/board" currentWorkspace={workspace} />,
     );
 
+    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 });

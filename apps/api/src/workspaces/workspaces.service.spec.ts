@@ -19,6 +19,7 @@ describe('WorkspacesService', () => {
     workspace: {
       findUnique: jest.Mock;
       create: jest.Mock;
+      update: jest.Mock;
       delete: jest.Mock;
     };
     workspaceMembership: {
@@ -59,6 +60,7 @@ describe('WorkspacesService', () => {
       workspace: {
         findUnique: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
         delete: jest.fn(),
       },
       workspaceMembership: {
@@ -304,6 +306,52 @@ describe('WorkspacesService', () => {
     expect(prisma.workspace.delete).toHaveBeenCalledWith({
       where: { id: 'workspace-1' },
     });
+  });
+
+  it('allows owners to rename a workspace', async () => {
+    membershipsService.requireMembership.mockResolvedValueOnce({
+      id: 'membership-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      role: 'owner',
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+    });
+    prisma.workspace.update.mockResolvedValueOnce({
+      id: 'workspace-1',
+      name: 'Renamed Workspace',
+      slug: 'product-team',
+      createdByUserId: 'user-1',
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-27T00:00:00.000Z'),
+    });
+    prisma.workspaceMembership.count.mockResolvedValueOnce(3);
+    prisma.workspaceInvitation.count.mockResolvedValueOnce(2);
+
+    const result = await service.updateWorkspaceName('workspace-1', '  Renamed   Workspace  ', 'user-1');
+
+    expect(membershipsService.requireMembership).toHaveBeenCalledWith('workspace-1', 'user-1');
+    expect(prisma.workspace.update).toHaveBeenCalledWith({
+      where: { id: 'workspace-1' },
+      data: { name: 'Renamed Workspace' },
+    });
+    expect(result.name).toBe('Renamed Workspace');
+    expect(result.memberCount).toBe(3);
+    expect(result.invitationCount).toBe(2);
+  });
+
+  it('rejects non-owners from renaming a workspace', async () => {
+    membershipsService.requireMembership.mockResolvedValueOnce({
+      id: 'membership-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      role: 'member',
+      createdAt: new Date('2026-03-26T00:00:00.000Z'),
+    });
+
+    await expect(
+      service.updateWorkspaceName('workspace-1', 'Renamed Workspace', 'user-1'),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.workspace.update).not.toHaveBeenCalled();
   });
 
   it('rejects non-owners from deleting a workspace', async () => {

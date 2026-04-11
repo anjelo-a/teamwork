@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { AuthMeResponse } from '@teamwork/types';
 import type * as ApiClientModule from '@/lib/api/client';
-import { ApiError, deleteWorkspace, getAuthMe } from '@/lib/api/client';
+import { ApiError, deleteWorkspace } from '@/lib/api/client';
 import { DeleteWorkspaceDialog } from '@/components/workspaces/delete-workspace-dialog';
 import { type AuthSessionResult, useAuthSession } from '@/lib/auth/auth-session-provider';
 
@@ -25,13 +25,11 @@ jest.mock('@/lib/api/client', () => {
   return {
     ...actual,
     deleteWorkspace: jest.fn(),
-    getAuthMe: jest.fn(),
   };
 });
 
 const mockedUseAuthSession = jest.mocked(useAuthSession);
 const mockedDeleteWorkspace = jest.mocked(deleteWorkspace);
-const mockedGetAuthMe = jest.mocked(getAuthMe);
 
 function createSession(workspaces: AuthMeResponse['workspaces'] = []): ReturnType<typeof useAuthSession> {
   return {
@@ -99,7 +97,6 @@ describe('DeleteWorkspaceDialog', () => {
       errorMessage: null,
     });
     mockedDeleteWorkspace.mockReset();
-    mockedGetAuthMe.mockReset();
     mockedUseAuthSession.mockReturnValue(createSession());
   });
 
@@ -118,16 +115,34 @@ describe('DeleteWorkspaceDialog', () => {
   it('deletes the workspace and redirects to the remaining workspace', async () => {
     const user = userEvent.setup();
     mockedDeleteWorkspace.mockResolvedValue({ success: true });
-    mockedGetAuthMe.mockResolvedValue({
-      user: {
-        id: 'user-1',
-        email: 'owner@example.com',
-        displayName: 'Owner',
-        createdAt: '2026-04-09T00:00:00.000Z',
-        updatedAt: '2026-04-09T00:00:00.000Z',
-      },
-      workspaces: [
-        {
+    mockRefreshSession.mockResolvedValueOnce({
+      status: 'authenticated',
+      auth: {
+        user: {
+          id: 'user-1',
+          email: 'owner@example.com',
+          displayName: 'Owner',
+          createdAt: '2026-04-09T00:00:00.000Z',
+          updatedAt: '2026-04-09T00:00:00.000Z',
+        },
+        workspaces: [
+          {
+            id: 'workspace-2',
+            name: 'Remaining Workspace',
+            slug: 'remaining-workspace',
+            createdByUserId: 'user-1',
+            createdAt: '2026-04-09T00:00:00.000Z',
+            updatedAt: '2026-04-09T00:00:00.000Z',
+            membership: {
+              id: 'membership-2',
+              workspaceId: 'workspace-2',
+              userId: 'user-1',
+              role: 'owner',
+              createdAt: '2026-04-09T00:00:00.000Z',
+            },
+          },
+        ],
+        activeWorkspace: {
           id: 'workspace-2',
           name: 'Remaining Workspace',
           slug: 'remaining-workspace',
@@ -142,22 +157,9 @@ describe('DeleteWorkspaceDialog', () => {
             createdAt: '2026-04-09T00:00:00.000Z',
           },
         },
-      ],
-      activeWorkspace: {
-        id: 'workspace-2',
-        name: 'Remaining Workspace',
-        slug: 'remaining-workspace',
-        createdByUserId: 'user-1',
-        createdAt: '2026-04-09T00:00:00.000Z',
-        updatedAt: '2026-04-09T00:00:00.000Z',
-        membership: {
-          id: 'membership-2',
-          workspaceId: 'workspace-2',
-          userId: 'user-1',
-          role: 'owner',
-          createdAt: '2026-04-09T00:00:00.000Z',
-        },
       },
+      accessToken: 'token-123',
+      errorMessage: null,
     });
 
     renderDialog();
@@ -165,7 +167,6 @@ describe('DeleteWorkspaceDialog', () => {
 
     await waitFor(() => {
       expect(mockedDeleteWorkspace).toHaveBeenCalledWith('workspace-1', 'token-123');
-      expect(mockedGetAuthMe).toHaveBeenCalledWith('token-123');
       expect(mockRefreshSession).toHaveBeenCalled();
       expect(mockReplace).toHaveBeenCalledWith('/workspaces/workspace-2/board');
     });
@@ -174,16 +175,21 @@ describe('DeleteWorkspaceDialog', () => {
   it('redirects to the home route when no workspaces remain', async () => {
     const user = userEvent.setup();
     mockedDeleteWorkspace.mockResolvedValue({ success: true });
-    mockedGetAuthMe.mockResolvedValue({
-      user: {
-        id: 'user-1',
-        email: 'owner@example.com',
-        displayName: 'Owner',
-        createdAt: '2026-04-09T00:00:00.000Z',
-        updatedAt: '2026-04-09T00:00:00.000Z',
+    mockRefreshSession.mockResolvedValueOnce({
+      status: 'authenticated',
+      auth: {
+        user: {
+          id: 'user-1',
+          email: 'owner@example.com',
+          displayName: 'Owner',
+          createdAt: '2026-04-09T00:00:00.000Z',
+          updatedAt: '2026-04-09T00:00:00.000Z',
+        },
+        workspaces: [],
+        activeWorkspace: null,
       },
-      workspaces: [],
-      activeWorkspace: null,
+      accessToken: 'token-123',
+      errorMessage: null,
     });
 
     renderDialog();
@@ -191,6 +197,34 @@ describe('DeleteWorkspaceDialog', () => {
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/');
+    });
+  });
+
+  it('redirects to auth when the refreshed session is unauthenticated', async () => {
+    const user = userEvent.setup();
+    mockedDeleteWorkspace.mockResolvedValue({ success: true });
+    mockRefreshSession.mockResolvedValueOnce({
+      status: 'unauthenticated',
+      auth: {
+        user: {
+          id: '',
+          email: '',
+          displayName: '',
+          createdAt: '',
+          updatedAt: '',
+        },
+        workspaces: [],
+        activeWorkspace: null,
+      },
+      accessToken: null,
+      errorMessage: null,
+    });
+
+    renderDialog();
+    await user.click(screen.getByRole('button', { name: 'Delete Workspace' }));
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/auth-required');
     });
   });
 
@@ -214,16 +248,21 @@ describe('DeleteWorkspaceDialog', () => {
     const user = userEvent.setup();
     const deferred = createDeferredPromise<{ success: true }>();
     mockedDeleteWorkspace.mockReturnValue(deferred.promise);
-    mockedGetAuthMe.mockResolvedValue({
-      user: {
-        id: 'user-1',
-        email: 'owner@example.com',
-        displayName: 'Owner',
-        createdAt: '2026-04-09T00:00:00.000Z',
-        updatedAt: '2026-04-09T00:00:00.000Z',
+    mockRefreshSession.mockResolvedValueOnce({
+      status: 'authenticated',
+      auth: {
+        user: {
+          id: 'user-1',
+          email: 'owner@example.com',
+          displayName: 'Owner',
+          createdAt: '2026-04-09T00:00:00.000Z',
+          updatedAt: '2026-04-09T00:00:00.000Z',
+        },
+        workspaces: [],
+        activeWorkspace: null,
       },
-      workspaces: [],
-      activeWorkspace: null,
+      accessToken: 'token-123',
+      errorMessage: null,
     });
 
     renderDialog();

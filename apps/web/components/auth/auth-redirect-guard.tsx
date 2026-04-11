@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PageStatusCard } from '@/components/app-shell/page-state';
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
-import { getWorkspaceBoardHref } from '@/lib/app-shell';
+import { resolveWorkspaceBoardRedirect } from '@/lib/auth/workspace-routing';
 
 export function AuthRedirectGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -23,8 +23,8 @@ export function AuthRedirectGuard({ children }: { children: ReactNode }) {
       return;
     }
 
-    const destinationWorkspace = auth.activeWorkspace ?? auth.workspaces[0];
-    router.replace(destinationWorkspace ? getWorkspaceBoardHref(destinationWorkspace.id) : '/');
+    const destinationPath = resolveWorkspaceBoardRedirect(auth);
+    router.replace(destinationPath ?? '/');
   }, [auth, router, searchParams, status]);
 
   if (status === 'loading') {

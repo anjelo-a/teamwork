@@ -13,6 +13,7 @@ import {
 import { useAuthSession } from '@/lib/auth/auth-session-provider';
 import { CreateWorkspaceModal } from '@/components/workspaces/create-workspace-modal';
 import { DeleteWorkspaceDialog } from '@/components/workspaces/delete-workspace-dialog';
+import { RenameWorkspaceDialog } from '@/components/workspaces/rename-workspace-dialog';
 
 interface SidebarNavigationProps {
   currentPath: string;
@@ -27,12 +28,14 @@ export function SidebarNavigation({
   const { auth, clearSession } = useAuthSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [isRenameWorkspaceOpen, setIsRenameWorkspaceOpen] = useState(false);
   const [isDeleteWorkspaceOpen, setIsDeleteWorkspaceOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const selectedWorkspaceId = currentWorkspace?.id ?? auth.workspaces[0]?.id ?? null;
   const currentWorkspaceName = currentWorkspace?.name ?? auth.workspaces[0]?.name ?? 'Workspace';
   const currentWorkspaceRole =
     currentWorkspace?.membership.role ?? auth.workspaces[0]?.membership.role ?? null;
+  const canRenameWorkspace = selectedWorkspaceId !== null && currentWorkspaceRole === 'owner';
   const canDeleteWorkspace = selectedWorkspaceId !== null && currentWorkspaceRole === 'owner';
   const workspaceHeadingClassName = getWorkspaceHeadingClassName(currentWorkspaceName);
   const items = getSidebarNavigationItems(selectedWorkspaceId);
@@ -119,8 +122,19 @@ export function SidebarNavigation({
               ))}
             </select>
 
-            {canDeleteWorkspace ? (
-              <div className="mt-2 flex justify-end">
+            {canRenameWorkspace || canDeleteWorkspace ? (
+              <div className="mt-2 flex justify-end gap-1.5">
+                {canRenameWorkspace ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsRenameWorkspaceOpen(true);
+                    }}
+                    className="rounded-[0.7rem] border border-transparent px-2.5 py-1 text-[0.76rem] font-semibold text-foreground transition-colors hover:border-line hover:bg-surface-strong"
+                  >
+                    Rename
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
@@ -200,6 +214,16 @@ export function SidebarNavigation({
           router.push(getWorkspaceScopedHref(currentPath, workspaceId));
         }}
       />
+      {selectedWorkspaceId && isRenameWorkspaceOpen ? (
+        <RenameWorkspaceDialog
+          open
+          workspaceId={selectedWorkspaceId}
+          workspaceName={currentWorkspaceName}
+          onClose={() => {
+            setIsRenameWorkspaceOpen(false);
+          }}
+        />
+      ) : null}
       {selectedWorkspaceId && isDeleteWorkspaceOpen ? (
         <DeleteWorkspaceDialog
           open

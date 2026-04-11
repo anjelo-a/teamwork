@@ -31,6 +31,9 @@ interface WorkspaceRepository {
   create<T extends Prisma.WorkspaceCreateArgs>(
     args: Prisma.SelectSubset<T, Prisma.WorkspaceCreateArgs>,
   ): Promise<Prisma.WorkspaceGetPayload<T>>;
+  update<T extends Prisma.WorkspaceUpdateArgs>(
+    args: Prisma.SelectSubset<T, Prisma.WorkspaceUpdateArgs>,
+  ): Promise<Prisma.WorkspaceGetPayload<T>>;
   delete<T extends Prisma.WorkspaceDeleteArgs>(
     args: Prisma.SelectSubset<T, Prisma.WorkspaceDeleteArgs>,
   ): Promise<Prisma.WorkspaceGetPayload<T>>;
@@ -141,6 +144,44 @@ export class WorkspacesService {
 
     return {
       ...this.toAuthenticatedWorkspace(membership.workspace, membership),
+      memberCount,
+      invitationCount,
+    };
+  }
+
+  async updateWorkspaceName(
+    workspaceId: string,
+    name: string,
+    actingUserId: string,
+  ): Promise<WorkspaceDetails> {
+    const membership = await this.membershipsService.requireMembership(workspaceId, actingUserId);
+
+    if (membership.role !== PrismaWorkspaceRole.owner) {
+      throw new ForbiddenException('Only workspace owners can update workspace details.');
+    }
+
+    const normalizedName = normalizeWorkspaceName(name);
+    const db = toWorkspaceDatabase(this.prisma);
+    const updatedWorkspace = await db.workspace.update({
+      where: { id: workspaceId },
+      data: { name: normalizedName },
+    });
+
+    const [memberCount, invitationCount] = await Promise.all([
+      db.workspaceMembership.count({
+        where: { workspaceId },
+      }),
+      db.workspaceInvitation.count({
+        where: {
+          workspaceId,
+          acceptedAt: null,
+          revokedAt: null,
+        },
+      }),
+    ]);
+
+    return {
+      ...this.toAuthenticatedWorkspace(updatedWorkspace, membership),
       memberCount,
       invitationCount,
     };
