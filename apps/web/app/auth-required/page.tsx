@@ -4,12 +4,15 @@ import { SignInForm } from '@/components/auth/sign-in-form';
 
 export const dynamic = 'force-dynamic';
 
-export default function AuthRequiredPage({
+export default async function AuthRequiredPage({
   searchParams,
 }: {
-  searchParams?: { next?: string };
+  searchParams?: Promise<{ next?: string }>;
 }) {
-  const nextQuery = searchParams?.next ? `?next=${encodeURIComponent(searchParams.next)}` : '';
+  const resolvedSearchParams = await searchParams;
+  const nextQuery = resolvedSearchParams?.next
+    ? `?next=${encodeURIComponent(resolvedSearchParams.next)}`
+    : '';
 
   return (
     <AuthRedirectGuard>

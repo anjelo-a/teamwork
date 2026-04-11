@@ -188,7 +188,7 @@ export function WorkspaceBoardPageClient({
           {boardDataQuery.data.hasMore ? (
             <PageSurface
               eyebrow="Task list capped"
-              title={`Showing the newest ${boardDataQuery.data.limit} tasks`}
+              title={`Showing the newest ${String(boardDataQuery.data.limit)} tasks`}
               description="This workspace has more tasks than the current response includes. Refine the board filters to narrow the list."
             />
           ) : null}

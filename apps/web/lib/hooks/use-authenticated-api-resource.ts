@@ -43,14 +43,6 @@ type StoredErrorState = StoredResourceState & {
 
 type StoredResourceResult<T> = StoredLoadingState | StoredSuccessState<T> | StoredErrorState;
 
-const inMemoryResourceCache = new Map<
-  string,
-  {
-    expiresAt: number;
-    data: unknown;
-  }
->();
-
 export function useAuthenticatedApiResource<T>({
   key,
   load,
@@ -61,6 +53,15 @@ export function useAuthenticatedApiResource<T>({
   const { status, accessToken } = useAuthSession();
   const loadRef = useRef(load);
   const requestTokenRef = useRef<symbol | null>(null);
+  const cacheRef = useRef(
+    new Map<
+      string,
+      {
+        expiresAt: number;
+        data: T;
+      }
+    >(),
+  );
   const [state, setState] = useState<StoredResourceResult<T>>({
     requestKey: null,
     status: 'loading',
@@ -79,33 +80,46 @@ export function useAuthenticatedApiResource<T>({
     }
 
     const cacheKey = `${key}::${accessToken}`;
-    const cachedEntry = inMemoryResourceCache.get(cacheKey);
-    const now = Date.now();
-    const hasFreshCachedEntry = Boolean(cachedEntry && cachedEntry.expiresAt > now);
-    const shouldUseInitialData = initialData !== null && initialData !== undefined;
+    const requestToken = Symbol(cacheKey);
+    requestTokenRef.current = requestToken;
+    const cachedEntry = cacheRef.current.get(cacheKey);
+    const hasFreshCachedEntry = Boolean(cachedEntry && cachedEntry.expiresAt > Date.now());
 
     if (hasFreshCachedEntry && cachedEntry) {
-      setState({
-        requestKey: key,
-        status: 'success',
-        data: cachedEntry.data as T,
-        error: null,
+      queueMicrotask(() => {
+        if (requestTokenRef.current !== requestToken) {
+          return;
+        }
+
+        setState({
+          requestKey: key,
+          status: 'success',
+          data: cachedEntry.data,
+          error: null,
+        });
       });
 
       if (!useStaleWhileRevalidate) {
-        return;
+        return () => {
+          if (requestTokenRef.current === requestToken) {
+            requestTokenRef.current = null;
+          }
+        };
       }
-    } else if (shouldUseInitialData) {
-      setState({
-        requestKey: key,
-        status: 'success',
-        data: initialData,
-        error: null,
+    } else if (initialData !== null) {
+      queueMicrotask(() => {
+        if (requestTokenRef.current !== requestToken) {
+          return;
+        }
+
+        setState({
+          requestKey: key,
+          status: 'success',
+          data: initialData,
+          error: null,
+        });
       });
     }
-
-    const requestToken = Symbol(cacheKey);
-    requestTokenRef.current = requestToken;
 
     void (async () => {
       try {
@@ -116,7 +130,7 @@ export function useAuthenticatedApiResource<T>({
         }
 
         if (cacheTtlMs > 0) {
-          inMemoryResourceCache.set(cacheKey, {
+          cacheRef.current.set(cacheKey, {
             expiresAt: Date.now() + cacheTtlMs,
             data,
           });
@@ -149,12 +163,7 @@ export function useAuthenticatedApiResource<T>({
     };
   }, [accessToken, cacheTtlMs, initialData, key, status, useStaleWhileRevalidate]);
 
-  if (
-    status !== 'authenticated' ||
-    !accessToken ||
-    state.requestKey !== key ||
-    state.status === 'loading'
-  ) {
+  if (status !== 'authenticated' || !accessToken) {
     return {
       status: 'loading',
       data: null,
@@ -162,7 +171,7 @@ export function useAuthenticatedApiResource<T>({
     };
   }
 
-  if (state.status === 'error') {
+  if (state.requestKey === key && state.status === 'error') {
     return {
       status: 'error',
       data: null,
@@ -170,9 +179,25 @@ export function useAuthenticatedApiResource<T>({
     };
   }
 
+  if (state.requestKey === key && state.status === 'success') {
+    return {
+      status: 'success',
+      data: state.data,
+      error: null,
+    };
+  }
+
+  if (initialData !== null) {
+    return {
+      status: 'success',
+      data: initialData,
+      error: null,
+    };
+  }
+
   return {
-    status: 'success',
-    data: state.data,
+    status: 'loading',
+    data: null,
     error: null,
   };
 }

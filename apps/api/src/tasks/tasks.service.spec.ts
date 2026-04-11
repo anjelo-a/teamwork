@@ -230,7 +230,7 @@ describe('TasksService', () => {
     prisma.task.findMany.mockResolvedValueOnce(
       Array.from({ length: 51 }, (_, index) =>
         buildTaskRecord({
-          id: `task-${index + 1}`,
+          id: `task-${String(index + 1)}`,
           createdAt: new Date(`2026-04-${String((index % 28) + 1).padStart(2, '0')}T00:00:00.000Z`),
         }),
       ),
@@ -251,7 +251,7 @@ describe('TasksService', () => {
     prisma.task.findMany.mockResolvedValueOnce(
       Array.from({ length: 26 }, (_, index) =>
         buildTaskRecord({
-          id: `task-limit-${index + 1}`,
+          id: `task-limit-${String(index + 1)}`,
         }),
       ),
     );

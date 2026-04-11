@@ -88,8 +88,8 @@ Key enums:
 
 ### Prerequisites
 
-- Node.js
-- pnpm
+- Node.js 24.x (see `.nvmrc`)
+- pnpm 10.0.0
 - PostgreSQL
 
 ### Install dependencies
@@ -146,6 +146,8 @@ pnpm --filter @teamwork/web dev
 
 ## Deployment
 
+Release runbook: [`docs/deploy/release-runbook.md`](docs/deploy/release-runbook.md)
+
 ### Recommended Hosting Split
 
 - `apps/web` on Vercel
@@ -180,11 +182,12 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com
 ### First Deploy Checklist
 
 1. Provision a production Postgres database.
-2. Set API environment variables, especially `DATABASE_URL`, `JWT_SECRET`, `APP_URL`, and `CORS_ALLOWED_ORIGINS`.
-3. Run Prisma migrations against production before opening the app to users.
-4. Deploy the API and verify the deployed frontend can call `/auth/me`.
-5. Deploy the web app to Vercel with `NEXT_PUBLIC_API_BASE_URL` pointing at the API.
-6. Smoke test sign-up, sign-in, workspace creation, invitation flows, share-link join, and task CRUD.
+2. Provision a dedicated shadow database for Prisma drift checks.
+3. Set API environment variables, especially `DATABASE_URL`, `SHADOW_DATABASE_URL`, `JWT_SECRET`, `APP_URL`, and `CORS_ALLOWED_ORIGINS`.
+4. Run `pnpm release:gate` to verify Prisma + lint + typecheck + production build.
+5. Deploy the API and verify the deployed frontend can call `/auth/me`.
+6. Deploy the web app to Vercel with `NEXT_PUBLIC_API_BASE_URL` pointing at the API.
+7. Smoke test sign-up, sign-in, workspace creation, invitation flows, share-link join, and task CRUD.
 
 ## Common Commands
 

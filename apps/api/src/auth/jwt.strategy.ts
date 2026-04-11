@@ -25,7 +25,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtAccessTokenPayload): Promise<RequestUser> {
     if (
-      payload.type !== 'access' ||
       typeof payload.sessionId !== 'string' ||
       payload.sessionId.trim().length === 0 ||
       typeof payload.displayName !== 'string' ||

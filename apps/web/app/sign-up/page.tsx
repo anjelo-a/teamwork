@@ -4,12 +4,15 @@ import { SignUpForm } from '@/components/auth/sign-up-form';
 
 export const dynamic = 'force-dynamic';
 
-export default function SignUpPage({
+export default async function SignUpPage({
   searchParams,
 }: {
-  searchParams?: { next?: string };
+  searchParams?: Promise<{ next?: string }>;
 }) {
-  const nextQuery = searchParams?.next ? `?next=${encodeURIComponent(searchParams.next)}` : '';
+  const resolvedSearchParams = await searchParams;
+  const nextQuery = resolvedSearchParams?.next
+    ? `?next=${encodeURIComponent(resolvedSearchParams.next)}`
+    : '';
 
   return (
     <AuthRedirectGuard>

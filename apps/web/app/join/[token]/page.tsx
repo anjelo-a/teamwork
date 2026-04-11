@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { PublicWorkspaceShareLinkLookup } from '@teamwork/types';
 import {
@@ -19,17 +19,22 @@ export default function WorkspaceJoinPage() {
   const router = useRouter();
   const { status, auth, accessToken, refreshSession } = useAuthSession();
   const token = typeof params.token === 'string' ? params.token : '';
-  const [lookup, setLookup] = useState<PublicWorkspaceShareLinkLookup | null>(null);
-  const [lookupState, setLookupState] = useState<'loading' | 'success' | 'error'>('loading');
-  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookupRequestState, setLookupRequestState] = useState<{
+    token: string;
+    state: 'loading' | 'success' | 'error';
+    lookup: PublicWorkspaceShareLinkLookup | null;
+    error: string | null;
+  }>({
+    token,
+    state: 'loading',
+    lookup: null,
+    error: null,
+  });
   const [joinError, setJoinError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
     let isActive = true;
-
-    setLookupState('loading');
-    setLookupError(null);
 
     void getPublicWorkspaceShareLink(token)
       .then((result) => {
@@ -37,20 +42,27 @@ export default function WorkspaceJoinPage() {
           return;
         }
 
-        setLookup(result);
-        setLookupState('success');
+        setLookupRequestState({
+          token,
+          state: 'success',
+          lookup: result,
+          error: null,
+        });
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         if (!isActive) {
           return;
         }
 
-        setLookupState('error');
-        setLookupError(
-          error instanceof ApiError || error instanceof Error
-            ? error.message
-            : 'Workspace share link could not be loaded.',
-        );
+        setLookupRequestState({
+          token,
+          state: 'error',
+          lookup: null,
+          error:
+            error instanceof ApiError || error instanceof Error
+              ? error.message
+              : 'Workspace share link could not be loaded.',
+        });
       });
 
     return () => {
@@ -58,10 +70,13 @@ export default function WorkspaceJoinPage() {
     };
   }, [token]);
 
-  const existingWorkspace = useMemo(
-    () => auth.workspaces.find((workspace) => workspace.id === lookup?.workspace.id) ?? null,
-    [auth.workspaces, lookup?.workspace.id],
-  );
+  const isCurrentLookupState = lookupRequestState.token === token;
+  const lookupState = isCurrentLookupState ? lookupRequestState.state : 'loading';
+  const lookup = isCurrentLookupState ? lookupRequestState.lookup : null;
+  const lookupError = isCurrentLookupState ? lookupRequestState.error : null;
+  const existingWorkspace = lookup
+    ? auth.workspaces.find((workspace) => workspace.id === lookup.workspace.id) ?? null
+    : null;
   const nextPath = `/join/${encodeURIComponent(token)}`;
 
   if (lookupState === 'loading') {
@@ -152,7 +167,7 @@ export default function WorkspaceJoinPage() {
                     await refreshSession();
                     router.replace(getWorkspaceBoardHref(lookup.workspace.id));
                   })
-                  .catch((error) => {
+                  .catch((error: unknown) => {
                     setJoinError(
                       error instanceof ApiError || error instanceof Error
                         ? error.message

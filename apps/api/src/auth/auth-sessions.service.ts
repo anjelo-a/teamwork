@@ -172,8 +172,8 @@ export class AuthSessionsService {
     return new Date(Date.now() + ttlSeconds * 1000);
   }
 
-  private get authSessionStore(): any {
-    return (this.prisma as any).authSession;
+  private get authSessionStore() {
+    return this.prisma.authSession;
   }
 }
 

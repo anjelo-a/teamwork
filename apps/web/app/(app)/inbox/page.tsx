@@ -72,7 +72,7 @@ export default function InboxPage() {
           {inboxQuery.data.hasMore ? (
             <PageSurface
               eyebrow="Task list capped"
-              title={`Showing the newest ${inboxQuery.data.limit} tasks`}
+              title={`Showing the newest ${String(inboxQuery.data.limit)} tasks`}
               description="Your inbox has additional tasks beyond this response. Narrow the view from a workspace board or calendar to work through the rest."
             />
           ) : null}

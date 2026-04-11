@@ -13,7 +13,7 @@ export default async function WorkspaceBoardPage({
 }: WorkspaceBoardPageProps) {
   const resolvedParams = await params;
   const workspaceId = readWorkspaceIdFromParams(resolvedParams);
-  const initialBoardData = await loadInitialBoardData(workspaceId);
+  const initialBoardData = loadInitialBoardData(workspaceId);
 
   return (
     <WorkspaceBoardPageClient
@@ -23,9 +23,9 @@ export default async function WorkspaceBoardPage({
   );
 }
 
-async function loadInitialBoardData(
+function loadInitialBoardData(
   workspaceId: string,
-): Promise<WorkspaceBoardDataResponse | null> {
+): WorkspaceBoardDataResponse | null {
   void workspaceId;
   return null;
 }

@@ -206,7 +206,7 @@ export default function WorkspaceCalendarPage() {
           {tasksQuery.data.hasMore ? (
             <PageSurface
               eyebrow="Task list capped"
-              title={`Showing the newest ${tasksQuery.data.limit} tasks`}
+              title={`Showing the newest ${String(tasksQuery.data.limit)} tasks`}
               description="This calendar has more tasks than the current response includes. Refine the view or date range to narrow the list."
             />
           ) : null}

@@ -527,18 +527,18 @@ describe('WorkspaceInvitationsService', () => {
       createdAt: new Date('2026-03-26T00:00:00.000Z'),
       updatedAt: new Date('2026-03-26T00:00:00.000Z'),
     });
-    prisma.workspaceShareLink.update.mockImplementationOnce(async ({ data }) => ({
+    prisma.workspaceShareLink.update.mockResolvedValueOnce({
       id: 'share-link-1',
       workspaceId,
-      tokenHash: data.tokenHash,
+      tokenHash: createHash('sha256').update('new-token').digest('hex'),
       role: PrismaWorkspaceRole.member,
       createdByUserId: 'owner-1',
-      expiresAt: data.expiresAt,
+      expiresAt: new Date('2026-04-27T00:00:00.000Z'),
       revokedAt: null,
       lastUsedAt: null,
       createdAt: new Date('2026-03-26T00:00:00.000Z'),
       updatedAt: new Date('2026-03-27T00:00:00.000Z'),
-    }));
+    });
 
     const result = await service.regenerateWorkspaceShareLink(workspaceId, 'owner-1');
 
