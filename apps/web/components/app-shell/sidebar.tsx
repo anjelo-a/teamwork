@@ -137,6 +137,7 @@ export function SidebarNavigation({
                 ) : null}
                 <button
                   type="button"
+                  data-testid="delete-workspace-trigger"
                   onClick={() => {
                     setIsDeleteWorkspaceOpen(true);
                   }}

@@ -76,6 +76,7 @@ describe('WorkspaceInvitationsService', () => {
       findFirst: jest.Mock;
       findUnique: jest.Mock;
       create: jest.Mock;
+      createMany: jest.Mock;
       update: jest.Mock;
       updateMany: jest.Mock;
     };
@@ -134,6 +135,7 @@ describe('WorkspaceInvitationsService', () => {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
         create: jest.fn(),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
         update: jest.fn(),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
@@ -462,8 +464,8 @@ describe('WorkspaceInvitationsService', () => {
   });
 
   it('creates and returns a new workspace share link with a raw url once', async () => {
-    prisma.workspaceShareLink.findUnique.mockResolvedValueOnce(null);
-    prisma.workspaceShareLink.create.mockResolvedValueOnce({
+    prisma.workspaceShareLink.createMany.mockResolvedValueOnce({ count: 1 });
+    prisma.workspaceShareLink.findUnique.mockResolvedValueOnce({
       id: 'share-link-1',
       workspaceId,
       tokenHash: createHash('sha256').update('share-token').digest('hex'),

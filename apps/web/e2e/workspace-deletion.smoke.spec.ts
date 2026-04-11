@@ -20,7 +20,7 @@ test('@smoke workspace deletion smoke', async ({ page, request }) => {
   await page.goto('/');
 
   await expect(page).toHaveURL(/\/workspaces\/[^/]+\/board$/, { timeout: 30000 });
-  await page.getByRole('button', { name: 'Delete' }).click();
+  await page.getByTestId('delete-workspace-trigger').click();
   await expect(page.getByRole('dialog', { name: 'Delete workspace' })).toBeVisible();
   await page.getByRole('button', { name: 'Delete Workspace' }).click();
 

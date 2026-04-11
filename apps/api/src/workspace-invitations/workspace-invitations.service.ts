@@ -136,6 +136,9 @@ interface WorkspaceShareLinkRepository {
   create<T extends Prisma.WorkspaceShareLinkCreateArgs>(
     args: Prisma.SelectSubset<T, Prisma.WorkspaceShareLinkCreateArgs>,
   ): Promise<Prisma.WorkspaceShareLinkGetPayload<T>>;
+  createMany<T extends Prisma.WorkspaceShareLinkCreateManyArgs>(
+    args: Prisma.SelectSubset<T, Prisma.WorkspaceShareLinkCreateManyArgs>,
+  ): Promise<Prisma.BatchPayload>;
   update<T extends Prisma.WorkspaceShareLinkUpdateArgs>(
     args: Prisma.SelectSubset<T, Prisma.WorkspaceShareLinkUpdateArgs>,
   ): Promise<Prisma.WorkspaceShareLinkGetPayload<T>>;
@@ -756,46 +759,31 @@ export class WorkspaceInvitationsService {
     createdByUserId: string,
     db: InvitationDatabase,
   ): Promise<{ shareLink: WorkspaceShareLinkSummaryRecord; token?: string }> {
-    const existingShareLink = await db.workspaceShareLink.findUnique({
-      where: {
-        workspaceId,
-      },
-      select: workspaceShareLinkSummarySelect,
-    });
-
-    if (existingShareLink) {
-      return { shareLink: existingShareLink };
-    }
-
     const token = createInvitationToken();
-
-    try {
-      const shareLink = await db.workspaceShareLink.create({
-        data: {
+    const createResult = await db.workspaceShareLink.createMany({
+      data: [
+        {
           workspaceId,
           tokenHash: createInvitationTokenHash(token),
           role: 'member',
           createdByUserId,
           expiresAt: this.createWorkspaceShareLinkExpiresAt(),
         },
-        select: workspaceShareLinkSummarySelect,
-      });
+      ],
+      skipDuplicates: true,
+    });
+    const shareLink = await db.workspaceShareLink.findUnique({
+      where: {
+        workspaceId,
+      },
+      select: workspaceShareLinkSummarySelect,
+    });
 
-      return { shareLink, token };
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        const shareLink = await db.workspaceShareLink.findUnique({
-          where: { workspaceId },
-          select: workspaceShareLinkSummarySelect,
-        });
-
-        if (shareLink) {
-          return { shareLink };
-        }
-      }
-
-      throw error;
+    if (!shareLink) {
+      throw new NotFoundException('Workspace share link unavailable.');
     }
+
+    return createResult.count > 0 ? { shareLink, token } : { shareLink };
   }
 
   private async ensureNoActiveInvitation(
