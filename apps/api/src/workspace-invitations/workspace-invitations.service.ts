@@ -3,7 +3,6 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -25,6 +24,7 @@ import type {
 } from '@teamwork/types';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { isPrismaErrorCode } from '../common/utils/prisma-error.util';
+import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -180,13 +180,12 @@ function toInvitationDatabase(db: Prisma.TransactionClient | PrismaService): Inv
 
 @Injectable()
 export class WorkspaceInvitationsService {
-  private readonly logger = new Logger(WorkspaceInvitationsService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly membershipsService: MembershipsService,
     private readonly usersService: UsersService,
+    private readonly securityTelemetryService: SecurityTelemetryService,
   ) {}
 
   async inviteMember(
@@ -197,30 +196,58 @@ export class WorkspaceInvitationsService {
   ): Promise<InviteWorkspaceMemberResult> {
     const normalizedEmail = normalizeEmail(email);
 
-    return this.prisma.$transaction(async (tx) => {
-      const db = toInvitationDatabase(tx);
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const db = toInvitationDatabase(tx);
 
-      await this.revokeExpiredPendingInvitations(workspaceId, normalizedEmail, db);
-      await this.ensureNoActiveInvitation(workspaceId, normalizedEmail, db);
-      const token = createInvitationToken();
-      const invitation = await this.createInvitation(
-        {
-          workspaceId,
-          email: normalizedEmail,
+        await this.revokeExpiredPendingInvitations(workspaceId, normalizedEmail, db);
+        await this.ensureNoActiveInvitation(workspaceId, normalizedEmail, db);
+        const token = createInvitationToken();
+        const invitation = await this.createInvitation(
+          {
+            workspaceId,
+            email: normalizedEmail,
+            token,
+            role,
+            invitedByUserId,
+          },
+          db,
+        );
+
+        return {
+          kind: 'invitation' as const,
+          invitation: this.toSummary(invitation),
           token,
-          role,
-          invitedByUserId,
-        },
-        db,
-      );
+          inviteUrl: this.buildInviteUrl(token),
+        };
+      });
 
-      return {
-        kind: 'invitation',
-        invitation: this.toSummary(invitation),
-        token,
-        inviteUrl: this.buildInviteUrl(token),
-      };
-    });
+      this.securityTelemetryService.record({
+        category: 'invitation',
+        eventName: 'invitation.create',
+        outcome: 'success',
+        workspaceId,
+        actorUserId: invitedByUserId,
+        details: {
+          role,
+        },
+      });
+
+      return result;
+    } catch (error) {
+      this.securityTelemetryService.record({
+        category: 'invitation',
+        eventName: 'invitation.create',
+        outcome: 'failure',
+        workspaceId,
+        actorUserId: invitedByUserId,
+        details: {
+          role,
+          reason: error instanceof Error ? error.message : 'unknown_error',
+        },
+      });
+      throw error;
+    }
   }
 
   async listPendingInvitations(workspaceId: string): Promise<WorkspaceInvitationSummary[]> {
@@ -312,31 +339,106 @@ export class WorkspaceInvitationsService {
   async revokeInvitation(
     workspaceId: string,
     invitationId: string,
+    actingUserId?: string,
   ): Promise<{ invitation: WorkspaceInvitationSummary }> {
-    const invitationStore = toInvitationDatabase(this.prisma).workspaceInvitation;
-    const invitation = await invitationStore.findFirst({
-      where: {
-        id: invitationId,
+    try {
+      const invitationStore = toInvitationDatabase(this.prisma).workspaceInvitation;
+      const invitation = await invitationStore.findFirst({
+        where: {
+          id: invitationId,
+          workspaceId,
+          acceptedAt: null,
+          revokedAt: null,
+        },
+        select: invitationSummarySelect,
+      });
+
+      if (!invitation) {
+        throw new NotFoundException('Invitation not found.');
+      }
+
+      const revokedInvitation = await invitationStore.update({
+        where: { id: invitation.id },
+        data: { revokedAt: new Date() },
+        select: invitationSummarySelect,
+      });
+
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'invitation.revoke',
+        outcome: 'success',
         workspaceId,
-        acceptedAt: null,
-        revokedAt: null,
-      },
-      select: invitationSummarySelect,
-    });
+        actorUserId: actingUserId ?? null,
+        details: {
+          invitationId,
+        },
+      });
 
-    if (!invitation) {
-      throw new NotFoundException('Invitation not found.');
+      return {
+        invitation: this.toSummary(revokedInvitation),
+      };
+    } catch (error) {
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'invitation.revoke',
+        outcome: 'failure',
+        workspaceId,
+        actorUserId: actingUserId ?? null,
+        details: {
+          invitationId,
+          reason: error instanceof Error ? error.message : 'unknown_error',
+        },
+      });
+      throw error;
     }
+  }
 
-    const revokedInvitation = await invitationStore.update({
-      where: { id: invitation.id },
-      data: { revokedAt: new Date() },
-      select: invitationSummarySelect,
-    });
+  async revokeAllPendingInvitations(
+    workspaceId: string,
+    actingUserId: string,
+  ): Promise<{ revokedCount: number }> {
+    const now = new Date();
 
-    return {
-      invitation: this.toSummary(revokedInvitation),
-    };
+    try {
+      const result = await toInvitationDatabase(this.prisma).workspaceInvitation.updateMany({
+        where: {
+          workspaceId,
+          acceptedAt: null,
+          revokedAt: null,
+          expiresAt: { gt: now },
+        },
+        data: {
+          revokedAt: now,
+        },
+      });
+
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'invitation.revoke_all',
+        outcome: 'success',
+        workspaceId,
+        actorUserId: actingUserId,
+        details: {
+          revokedCount: result.count,
+        },
+      });
+
+      return {
+        revokedCount: result.count,
+      };
+    } catch (error) {
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'invitation.revoke_all',
+        outcome: 'failure',
+        workspaceId,
+        actorUserId: actingUserId,
+        details: {
+          reason: error instanceof Error ? error.message : 'unknown_error',
+        },
+      });
+      throw error;
+    }
   }
 
   async getWorkspaceShareLink(
@@ -418,23 +520,47 @@ export class WorkspaceInvitationsService {
     workspaceId: string,
     createdByUserId: string,
   ): Promise<{ shareLink: WorkspaceShareLinkSummary }> {
-    return this.prisma.$transaction(async (tx) => {
-      const db = toInvitationDatabase(tx);
-      const { shareLink } = await this.getOrCreateWorkspaceShareLink(
-        workspaceId,
-        createdByUserId,
-        db,
-      );
-      const disabledShareLink = await db.workspaceShareLink.update({
-        where: { id: shareLink.id },
-        data: { revokedAt: new Date() },
-        select: workspaceShareLinkSummarySelect,
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const db = toInvitationDatabase(tx);
+        const { shareLink } = await this.getOrCreateWorkspaceShareLink(
+          workspaceId,
+          createdByUserId,
+          db,
+        );
+        const disabledShareLink = await db.workspaceShareLink.update({
+          where: { id: shareLink.id },
+          data: { revokedAt: new Date() },
+          select: workspaceShareLinkSummarySelect,
+        });
+
+        return {
+          shareLink: this.toWorkspaceShareLinkSummary(disabledShareLink),
+        };
       });
 
-      return {
-        shareLink: this.toWorkspaceShareLinkSummary(disabledShareLink),
-      };
-    });
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'share_link.disable',
+        outcome: 'success',
+        workspaceId,
+        actorUserId: createdByUserId,
+      });
+
+      return result;
+    } catch (error) {
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'share_link.disable',
+        outcome: 'failure',
+        workspaceId,
+        actorUserId: createdByUserId,
+        details: {
+          reason: error instanceof Error ? error.message : 'unknown_error',
+        },
+      });
+      throw error;
+    }
   }
 
   async acceptInvitation(
@@ -1021,14 +1147,24 @@ export class WorkspaceInvitationsService {
     outcome: 'success' | 'failure',
     details: Record<string, unknown>,
   ): void {
-    this.logger.log(
-      JSON.stringify({
-        eventName,
-        outcome,
-        category: 'security',
-        ...details,
-      }),
-    );
+    this.securityTelemetryService.record({
+      category: 'invitation',
+      eventName,
+      outcome,
+      ...(typeof details['workspaceId'] === 'string'
+        ? { workspaceId: details['workspaceId'] }
+        : {}),
+      ...(typeof details['actorUserId'] === 'string'
+        ? { actorUserId: details['actorUserId'] }
+        : {}),
+      ...(typeof details['ipAddress'] === 'string' || details['ipAddress'] === null
+        ? { ipAddress: details['ipAddress'] as string | null }
+        : {}),
+      ...(typeof details['userAgent'] === 'string' || details['userAgent'] === null
+        ? { userAgent: details['userAgent'] as string | null }
+        : {}),
+      details,
+    });
   }
 }
 

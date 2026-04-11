@@ -1,6 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { AddWorkspaceMemberDto } from './dto/add-workspace-member.dto';
+import { TransferWorkspaceOwnershipDto } from './dto/transfer-workspace-ownership.dto';
 import { UpdateWorkspaceMemberDto } from './dto/update-workspace-member.dto';
 import { UpdateWorkspaceShareLinkDto } from './dto/update-workspace-share-link.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
@@ -67,6 +68,20 @@ describe('Workspace member DTOs', () => {
     expect(validDto.name).toBe('Product Team');
     await expect(validate(tooShortDto)).resolves.toEqual(
       expect.arrayContaining([expect.objectContaining({ property: 'name' })]),
+    );
+  });
+
+  it('requires a valid uuid for ownership transfers', async () => {
+    const validDto = plainToInstance(TransferWorkspaceOwnershipDto, {
+      nextOwnerUserId: '11111111-1111-4111-8111-111111111111',
+    });
+    const invalidDto = plainToInstance(TransferWorkspaceOwnershipDto, {
+      nextOwnerUserId: 'not-a-uuid',
+    });
+
+    await expect(validate(validDto)).resolves.toHaveLength(0);
+    await expect(validate(invalidDto)).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ property: 'nextOwnerUserId' })]),
     );
   });
 });

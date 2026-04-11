@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import type { ExecutionContext } from '@nestjs/common';
 import type { WorkspaceMembership } from '@prisma/client';
 import type { WorkspaceRole } from '@teamwork/types';
+import { WorkspacePolicyService } from '../policy/workspace-policy.service';
 import { WORKSPACE_ROLES_KEY } from './workspace-roles.decorator';
 import { WorkspaceRoleGuard } from './workspace-role.guard';
 
@@ -29,7 +30,7 @@ describe('WorkspaceRoleGuard', () => {
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
-      providers: [WorkspaceRoleGuard, Reflector],
+      providers: [WorkspaceRoleGuard, WorkspacePolicyService, Reflector],
     }).compile();
 
     reflector = moduleRef.get(Reflector);

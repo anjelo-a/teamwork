@@ -15,6 +15,8 @@ import type {
   WorkspaceMembershipSummary,
   WorkspaceRole,
 } from '@teamwork/types';
+import { WorkspacePolicyService } from '../common/policy/workspace-policy.service';
+import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 import { isPrismaErrorCode } from '../common/utils/prisma-error.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -27,6 +29,8 @@ export class MembershipsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
+    private readonly workspacePolicyService: WorkspacePolicyService,
+    private readonly securityTelemetryService: SecurityTelemetryService,
   ) {}
 
   async createMembership(
@@ -108,27 +112,61 @@ export class MembershipsService {
   }
 
   async removeMember(workspaceId: string, userId: string, actingUserId: string) {
-    return this.runInSerializableTransaction(async (tx) => {
-      const membership = await this.requireMembership(workspaceId, userId, tx);
+    try {
+      return this.runInSerializableTransaction(async (tx) => {
+        const membership = await this.requireMembership(workspaceId, userId, tx);
+        const actingMembership =
+          actingUserId === userId
+            ? membership
+            : await this.requireMembership(workspaceId, actingUserId, tx);
 
-      if (actingUserId !== userId) {
-        const actingMembership = await this.requireMembership(workspaceId, actingUserId, tx);
+        this.workspacePolicyService.assertCanRemoveMember({
+          actingUserId,
+          targetUserId: userId,
+          actingMembership: {
+            userId: actingMembership.userId,
+            role: actingMembership.role as WorkspaceRole,
+          },
+        });
 
-        if (actingMembership.role !== PrismaWorkspaceRole.owner) {
-          throw new ForbiddenException('You do not have permission to remove this member.');
+        if (membership.role === PrismaWorkspaceRole.owner) {
+          await this.ensureWorkspaceHasAnotherOwner(workspaceId, userId, tx);
         }
-      }
 
-      if (membership.role === PrismaWorkspaceRole.owner) {
-        await this.ensureWorkspaceHasAnotherOwner(workspaceId, userId, tx);
-      }
+        await tx.workspaceMembership.delete({
+          where: { id: membership.id },
+        });
 
-      await tx.workspaceMembership.delete({
-        where: { id: membership.id },
+        this.securityTelemetryService.record({
+          category: 'destructive',
+          eventName: 'workspace.member.remove',
+          outcome: 'success',
+          severity: 'warning',
+          workspaceId,
+          actorUserId: actingUserId,
+          details: {
+            removedUserId: userId,
+            removedOwnMembership: actingUserId === userId,
+          },
+        });
+
+        return { success: true };
       });
-
-      return { success: true };
-    });
+    } catch (error) {
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'workspace.member.remove',
+        outcome: 'failure',
+        severity: 'warning',
+        workspaceId,
+        actorUserId: actingUserId,
+        details: {
+          removedUserId: userId,
+          reason: error instanceof Error ? error.message : 'unknown_error',
+        },
+      });
+      throw error;
+    }
   }
 
   toSummary(

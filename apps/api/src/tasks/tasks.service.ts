@@ -8,6 +8,7 @@ import type {
   TaskStatus,
   TaskSummary,
 } from '@teamwork/types';
+import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { serializeTaskDueDate, tryParseTaskDueDate } from './task-due-date.util';
@@ -117,6 +118,7 @@ export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly membershipsService: MembershipsService,
+    private readonly securityTelemetryService: SecurityTelemetryService,
   ) {}
 
   async createTask(
@@ -259,12 +261,38 @@ export class TasksService {
   }
 
   async deleteTask(workspaceId: string, taskId: string, currentUserId: string): Promise<void> {
-    await this.membershipsService.requireMembership(workspaceId, currentUserId);
-    await this.findTaskOrThrow(workspaceId, taskId);
+    try {
+      await this.membershipsService.requireMembership(workspaceId, currentUserId);
+      await this.findTaskOrThrow(workspaceId, taskId);
 
-    await toTaskDatabase(this.prisma).task.delete({
-      where: { id: taskId },
-    });
+      await toTaskDatabase(this.prisma).task.delete({
+        where: { id: taskId },
+      });
+
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'task.delete',
+        outcome: 'success',
+        workspaceId,
+        actorUserId: currentUserId,
+        details: {
+          taskId,
+        },
+      });
+    } catch (error) {
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'task.delete',
+        outcome: 'failure',
+        workspaceId,
+        actorUserId: currentUserId,
+        details: {
+          taskId,
+          reason: error instanceof Error ? error.message : 'unknown_error',
+        },
+      });
+      throw error;
+    }
   }
 
   async updateTaskStatus(

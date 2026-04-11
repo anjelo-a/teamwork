@@ -5,6 +5,7 @@ test('@smoke member management smoke', async ({ browser, page, request }) => {
 
   const ownerEmail = createUniqueEmail('owner');
   const memberEmail = createUniqueEmail('member');
+  const pendingInviteEmail = createUniqueEmail('pending-invite');
   const password = 'Passw0rd!';
   const ownerName = 'Owner Smoke';
   const memberName = 'Member Smoke';
@@ -49,14 +50,24 @@ test('@smoke member management smoke', async ({ browser, page, request }) => {
   const invitationId = await readInvitationId(memberAccessToken, workspaceId);
   await acceptInvitation(invitationId, memberAccessToken);
 
-  await page.goto(`/workspaces/${workspaceId}/members`);
+  await page.goto(`/workspaces/${workspaceId}/invitations`);
+  await page.getByRole('button', { name: 'Send Invite' }).click();
+  await page.getByPlaceholder('member@example.com').fill(pendingInviteEmail);
+  await page.getByRole('button', { name: 'Invite Member' }).click();
+  await expect(page.getByText(`Invitation created for ${pendingInviteEmail}`)).toBeVisible();
 
-  const memberRow = page.locator('[data-testid^="member-row-"]').filter({ hasText: memberEmail });
-  await expect(memberRow).toContainText(memberEmail);
-  await memberRow.getByRole('button', { name: 'Remove' }).click();
-  await page.getByRole('button', { name: 'Remove Member' }).click();
+  await page.goto(`/workspaces/${workspaceId}/settings`);
+  await page.getByRole('button', { name: 'Revoke All Invitations' }).click();
+  await expect(page.getByText('Revoked 1 pending invitation(s).')).toBeVisible();
 
-  await expect(page.locator('[data-testid^="member-row-"]').filter({ hasText: memberEmail })).toHaveCount(0);
+  await page
+    .getByLabel('Next owner')
+    .selectOption(`${memberName} (${memberEmail})`);
+  await page.getByRole('button', { name: 'Transfer Ownership' }).click();
+  await expect(page.getByText(`Ownership transferred to ${memberName}.`)).toBeVisible();
+
+  await page.goto(`/workspaces/${workspaceId}/invitations`);
+  await expect(page.getByText('Owner access required')).toBeVisible();
 
   await memberContext.close();
 });

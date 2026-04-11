@@ -61,3 +61,19 @@ export function CalendarIcon() {
     </ShellIcon>
   );
 }
+
+export function SettingsIcon() {
+  return (
+    <ShellIcon>
+      <circle cx="12" cy="12" r="2.8" />
+      <path d="M12 4.5v2.1" />
+      <path d="M12 17.4v2.1" />
+      <path d="M4.5 12h2.1" />
+      <path d="M17.4 12h2.1" />
+      <path d="m6.7 6.7 1.5 1.5" />
+      <path d="m15.8 15.8 1.5 1.5" />
+      <path d="m17.3 6.7-1.5 1.5" />
+      <path d="m8.2 15.8-1.5 1.5" />
+    </ShellIcon>
+  );
+}

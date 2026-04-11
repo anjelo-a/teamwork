@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { TaskStatus as PrismaTaskStatus, type Prisma } from '@prisma/client';
+import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TasksService } from './tasks.service';
@@ -50,6 +51,9 @@ describe('TasksService', () => {
   let membershipsService: {
     requireMembership: jest.Mock;
   };
+  let securityTelemetryService: {
+    record: jest.Mock;
+  };
   let service: TasksService;
 
   beforeEach(async () => {
@@ -71,6 +75,9 @@ describe('TasksService', () => {
     membershipsService = {
       requireMembership: jest.fn(),
     };
+    securityTelemetryService = {
+      record: jest.fn(),
+    };
     const defaultUserRecords: TaskActorRecord[] = [
       {
         id: userId,
@@ -91,6 +98,7 @@ describe('TasksService', () => {
         TasksService,
         { provide: PrismaService, useValue: prisma },
         { provide: MembershipsService, useValue: membershipsService },
+        { provide: SecurityTelemetryService, useValue: securityTelemetryService },
       ],
     }).compile();
 

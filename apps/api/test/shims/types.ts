@@ -70,6 +70,61 @@ export interface WorkspaceShareLinkSummary {
   url: string | null;
 }
 
+export type SecurityTelemetryCategory = 'auth' | 'invitation' | 'destructive' | 'authorization';
+export type SecurityTelemetryOutcome = 'success' | 'failure';
+export type SecurityTelemetrySeverity = 'info' | 'warning' | 'critical';
+
+export interface SecurityTelemetryEvent {
+  id: ID;
+  category: SecurityTelemetryCategory;
+  eventName: string;
+  outcome: SecurityTelemetryOutcome;
+  severity: SecurityTelemetrySeverity;
+  workspaceId: ID | null;
+  actorUserId: ID | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  details: Record<string, unknown>;
+}
+
+export interface SecurityTelemetryAlert {
+  id: ID;
+  severity: SecurityTelemetrySeverity;
+  title: string;
+  description: string;
+  count: number;
+  threshold: number;
+}
+
+export interface WorkspaceSecurityDashboard {
+  workspaceId: ID;
+  generatedAt: string;
+  windowMinutes: number;
+  counters: {
+    authFailures: number;
+    invitationFailures: number;
+    destructiveActions: number;
+    destructiveFailures: number;
+    authorizationFailures: number;
+  };
+  alerts: SecurityTelemetryAlert[];
+  recentEvents: SecurityTelemetryEvent[];
+}
+
+export interface WorkspaceSecurityDashboardResponse {
+  dashboard: WorkspaceSecurityDashboard;
+}
+
+export interface WorkspaceOwnershipTransferResponse {
+  previousOwnerMembership: WorkspaceMemberDetail;
+  nextOwnerMembership: WorkspaceMemberDetail;
+}
+
+export interface WorkspaceBulkInvitationRevocationResponse {
+  revokedCount: number;
+}
+
 export interface PublicWorkspaceShareLinkSummary {
   id: ID;
   workspaceId: ID;

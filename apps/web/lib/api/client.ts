@@ -15,13 +15,16 @@ import type {
   UpdateTaskAssigneeInput,
   UpdateTaskInput,
   UpdateTaskStatusInput,
+  WorkspaceBulkInvitationRevocationResponse,
   WorkspaceDeleteResponse,
   WorkspaceInvitationResponse,
   WorkspaceMemberResponse,
   WorkspaceMemberRemovalResponse,
+  WorkspaceOwnershipTransferResponse,
   WorkspaceInvitationsResponse,
   WorkspaceMembersResponse,
   WorkspaceResponse,
+  WorkspaceSecurityDashboardResponse,
   WorkspaceShareLinkResponse,
 } from '@teamwork/types';
 import {
@@ -33,10 +36,13 @@ import {
   parseRegisterResponse,
   parseUserInvitationsResponse,
   parseWorkspaceDeleteResponse,
+  parseWorkspaceBulkInvitationRevocationResponse,
   parseWorkspaceBoardDataResponse,
   parseWorkspaceInvitationResponse,
   parseWorkspaceMemberResponse,
   parseWorkspaceMemberRemovalResponse,
+  parseWorkspaceOwnershipTransferResponse,
+  parseWorkspaceSecurityDashboardResponse,
   parseWorkspaceShareLinkResponse,
   parseTaskListResponse,
   parseTaskResponse,
@@ -229,6 +235,19 @@ export async function updateWorkspaceMemberRole(
   });
 }
 
+export async function transferWorkspaceOwnership(
+  workspaceId: string,
+  accessToken: string,
+  nextOwnerUserId: string,
+): Promise<WorkspaceOwnershipTransferResponse> {
+  return apiRequest(`/workspaces/${workspaceId}/ownership/transfer`, {
+    accessToken,
+    method: 'POST',
+    body: JSON.stringify({ nextOwnerUserId }),
+    parser: parseWorkspaceOwnershipTransferResponse,
+  });
+}
+
 export async function removeWorkspaceMember(
   workspaceId: string,
   userId: string,
@@ -251,6 +270,17 @@ export async function getWorkspaceInvitations(
   });
 }
 
+export async function revokeAllWorkspaceInvitations(
+  workspaceId: string,
+  accessToken: string,
+): Promise<WorkspaceBulkInvitationRevocationResponse> {
+  return apiRequest(`/workspaces/${workspaceId}/invitations/revoke-all`, {
+    accessToken,
+    method: 'POST',
+    parser: parseWorkspaceBulkInvitationRevocationResponse,
+  });
+}
+
 export async function getWorkspaceShareLink(
   workspaceId: string,
   accessToken: string,
@@ -258,6 +288,16 @@ export async function getWorkspaceShareLink(
   return apiRequest(`/workspaces/${workspaceId}/share-link`, {
     accessToken,
     parser: parseWorkspaceShareLinkResponse,
+  });
+}
+
+export async function getWorkspaceSecurityDashboard(
+  workspaceId: string,
+  accessToken: string,
+): Promise<WorkspaceSecurityDashboardResponse> {
+  return apiRequest(`/workspaces/${workspaceId}/security-dashboard`, {
+    accessToken,
+    parser: parseWorkspaceSecurityDashboardResponse,
   });
 }
 

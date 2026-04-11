@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   Prisma,
   WorkspaceRole as PrismaWorkspaceRole,
@@ -7,6 +7,7 @@ import {
 } from '@prisma/client';
 import type {
   AuthenticatedWorkspace,
+  WorkspaceRole,
   TaskAssignmentFilter,
   TaskDueBucket,
   WorkspaceBoardDataResponse,
@@ -19,6 +20,8 @@ import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TasksService } from '../tasks/tasks.service';
 import { slugify } from '../common/utils/slug.util';
+import { WorkspacePolicyService, type WorkspacePolicyAction } from '../common/policy/workspace-policy.service';
+import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 
 type WorkspaceMembershipCountArgs = NonNullable<
   Parameters<PrismaService['workspaceMembership']['count']>[0]
@@ -81,6 +84,8 @@ export class WorkspacesService {
     private readonly prisma: PrismaService,
     private readonly membershipsService: MembershipsService,
     private readonly tasksService: TasksService,
+    private readonly workspacePolicyService: WorkspacePolicyService,
+    private readonly securityTelemetryService: SecurityTelemetryService,
   ) {}
 
   async createWorkspace(
@@ -154,37 +159,48 @@ export class WorkspacesService {
     name: string,
     actingUserId: string,
   ): Promise<WorkspaceDetails> {
-    const membership = await this.membershipsService.requireMembership(workspaceId, actingUserId);
+    try {
+      const membership = await this.membershipsService.requireMembership(workspaceId, actingUserId);
+      this.assertWorkspacePolicy('workspace.settings.update', membership, workspaceId, actingUserId);
 
-    if (membership.role !== PrismaWorkspaceRole.owner) {
-      throw new ForbiddenException('Only workspace owners can update workspace details.');
-    }
+      const normalizedName = normalizeWorkspaceName(name);
+      const db = toWorkspaceDatabase(this.prisma);
+      const updatedWorkspace = await db.workspace.update({
+        where: { id: workspaceId },
+        data: { name: normalizedName },
+      });
 
-    const normalizedName = normalizeWorkspaceName(name);
-    const db = toWorkspaceDatabase(this.prisma);
-    const updatedWorkspace = await db.workspace.update({
-      where: { id: workspaceId },
-      data: { name: normalizedName },
-    });
+      const [memberCount, invitationCount] = await Promise.all([
+        db.workspaceMembership.count({
+          where: { workspaceId },
+        }),
+        db.workspaceInvitation.count({
+          where: {
+            workspaceId,
+            acceptedAt: null,
+            revokedAt: null,
+          },
+        }),
+      ]);
 
-    const [memberCount, invitationCount] = await Promise.all([
-      db.workspaceMembership.count({
-        where: { workspaceId },
-      }),
-      db.workspaceInvitation.count({
-        where: {
-          workspaceId,
-          acceptedAt: null,
-          revokedAt: null,
+      return {
+        ...this.toAuthenticatedWorkspace(updatedWorkspace, membership),
+        memberCount,
+        invitationCount,
+      };
+    } catch (error) {
+      this.securityTelemetryService.record({
+        category: 'authorization',
+        eventName: 'workspace.settings.update',
+        outcome: 'failure',
+        workspaceId,
+        actorUserId: actingUserId,
+        details: {
+          reason: error instanceof Error ? error.message : 'unknown_error',
         },
-      }),
-    ]);
-
-    return {
-      ...this.toAuthenticatedWorkspace(updatedWorkspace, membership),
-      memberCount,
-      invitationCount,
-    };
+      });
+      throw error;
+    }
   }
 
   async createWorkspaceForUser(name: string, userId: string): Promise<WorkspaceDetails> {
@@ -263,17 +279,123 @@ export class WorkspacesService {
   }
 
   async deleteWorkspace(workspaceId: string, actingUserId: string): Promise<{ success: true }> {
-    const membership = await this.membershipsService.requireMembership(workspaceId, actingUserId);
+    try {
+      const membership = await this.membershipsService.requireMembership(workspaceId, actingUserId);
+      this.assertWorkspacePolicy('workspace.delete', membership, workspaceId, actingUserId);
 
-    if (membership.role !== PrismaWorkspaceRole.owner) {
-      throw new ForbiddenException('Only workspace owners can delete this workspace.');
+      await toWorkspaceDatabase(this.prisma).workspace.delete({
+        where: { id: workspaceId },
+      });
+
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'workspace.delete',
+        outcome: 'success',
+        severity: 'critical',
+        workspaceId,
+        actorUserId: actingUserId,
+      });
+
+      return { success: true };
+    } catch (error) {
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'workspace.delete',
+        outcome: 'failure',
+        severity: 'warning',
+        workspaceId,
+        actorUserId: actingUserId,
+        details: {
+          reason: error instanceof Error ? error.message : 'unknown_error',
+        },
+      });
+      throw error;
     }
+  }
 
-    await toWorkspaceDatabase(this.prisma).workspace.delete({
-      where: { id: workspaceId },
-    });
+  async transferOwnership(
+    workspaceId: string,
+    actingUserId: string,
+    nextOwnerUserId: string,
+  ): Promise<{
+    previousOwnerMembership: ReturnType<MembershipsService['toDetail']>;
+    nextOwnerMembership: ReturnType<MembershipsService['toDetail']>;
+  }> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const actingMembership = await this.membershipsService.requireMembership(
+          workspaceId,
+          actingUserId,
+          tx,
+        );
+        const nextOwnerMembership = await this.membershipsService.requireMembership(
+          workspaceId,
+          nextOwnerUserId,
+          tx,
+        );
 
-    return { success: true };
+        this.workspacePolicyService.assertCanTransferOwnership({
+          actingUserId,
+          nextOwnerUserId,
+          actingMembership: {
+            userId: actingMembership.userId,
+            role: actingMembership.role as WorkspaceRole,
+          },
+          nextOwnerMembership: {
+            userId: nextOwnerMembership.userId,
+            role: nextOwnerMembership.role as WorkspaceRole,
+          },
+        });
+
+        const promotedMembership = await tx.workspaceMembership.update({
+          where: { id: nextOwnerMembership.id },
+          data: { role: PrismaWorkspaceRole.owner },
+          include: { user: true },
+        });
+        const demotedMembership = await tx.workspaceMembership.update({
+          where: { id: actingMembership.id },
+          data: { role: PrismaWorkspaceRole.member },
+          include: { user: true },
+        });
+
+        this.securityTelemetryService.record({
+          category: 'destructive',
+          eventName: 'workspace.ownership.transfer',
+          outcome: 'success',
+          severity: 'warning',
+          workspaceId,
+          actorUserId: actingUserId,
+          details: {
+            nextOwnerUserId,
+          },
+        });
+
+        return {
+          previousOwnerMembership: this.membershipsService.toDetail(
+            demotedMembership,
+            demotedMembership.user,
+          ),
+          nextOwnerMembership: this.membershipsService.toDetail(
+            promotedMembership,
+            promotedMembership.user,
+          ),
+        };
+      });
+    } catch (error) {
+      this.securityTelemetryService.record({
+        category: 'destructive',
+        eventName: 'workspace.ownership.transfer',
+        outcome: 'failure',
+        severity: 'warning',
+        workspaceId,
+        actorUserId: actingUserId,
+        details: {
+          nextOwnerUserId,
+          reason: error instanceof Error ? error.message : 'unknown_error',
+        },
+      });
+      throw error;
+    }
   }
 
   toSummary(
@@ -321,6 +443,29 @@ export class WorkspacesService {
       }
 
       attempt += 1;
+    }
+  }
+
+  private assertWorkspacePolicy(
+    action: WorkspacePolicyAction,
+    membership: Pick<WorkspaceMembership, 'role'>,
+    workspaceId: string,
+    actingUserId: string,
+  ): void {
+    try {
+      this.workspacePolicyService.assertCanPerformAction(action, membership);
+    } catch (error) {
+      this.securityTelemetryService.record({
+        category: 'authorization',
+        eventName: action,
+        outcome: 'failure',
+        workspaceId,
+        actorUserId: actingUserId,
+        details: {
+          reason: error instanceof Error ? error.message : 'unknown_error',
+        },
+      });
+      throw error;
     }
   }
 

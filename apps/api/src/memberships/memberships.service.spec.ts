@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Prisma, WorkspaceRole as PrismaWorkspaceRole } from '@prisma/client';
 import type { UserSummary } from '@teamwork/types';
+import { WorkspacePolicyService } from '../common/policy/workspace-policy.service';
+import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { MembershipsService } from './memberships.service';
@@ -32,6 +34,9 @@ describe('MembershipsService', () => {
   let usersService: {
     toSummary: jest.Mock;
   };
+  let securityTelemetryService: {
+    record: jest.Mock;
+  };
   let service: MembershipsService;
 
   beforeEach(async () => {
@@ -59,12 +64,17 @@ describe('MembershipsService', () => {
     usersService = {
       toSummary: jest.fn((user: UserRecord): UserSummary => toUserSummary(user)),
     };
+    securityTelemetryService = {
+      record: jest.fn(),
+    };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         MembershipsService,
         { provide: PrismaService, useValue: prisma },
         { provide: UsersService, useValue: usersService },
+        WorkspacePolicyService,
+        { provide: SecurityTelemetryService, useValue: securityTelemetryService },
       ],
     }).compile();
 

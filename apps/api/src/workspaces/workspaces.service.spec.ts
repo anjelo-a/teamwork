@@ -2,6 +2,8 @@ import { Test } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
 import type { WorkspaceMembershipSummary } from '@teamwork/types';
+import { WorkspacePolicyService } from '../common/policy/workspace-policy.service';
+import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TasksService } from '../tasks/tasks.service';
@@ -26,6 +28,7 @@ describe('WorkspacesService', () => {
       findUniqueOrThrow: jest.Mock;
       findUnique: jest.Mock;
       count: jest.Mock;
+      update: jest.Mock;
     };
     workspaceInvitation: {
       count: jest.Mock;
@@ -37,9 +40,13 @@ describe('WorkspacesService', () => {
     requireMembership: jest.Mock;
     listWorkspaceMembers: jest.Mock;
     toSummary: jest.Mock;
+    toDetail: jest.Mock;
   };
   let tasksService: {
     listTasksForWorkspace: jest.Mock;
+  };
+  let securityTelemetryService: {
+    record: jest.Mock;
   };
   let service: WorkspacesService;
 
@@ -67,6 +74,7 @@ describe('WorkspacesService', () => {
         findUniqueOrThrow: jest.fn(),
         findUnique: jest.fn(),
         count: jest.fn(),
+        update: jest.fn(),
       },
       workspaceInvitation: {
         count: jest.fn(),
@@ -81,9 +89,22 @@ describe('WorkspacesService', () => {
         (membership: WorkspaceMembershipRecord): WorkspaceMembershipSummary =>
           toMembershipSummary(membership),
       ),
+      toDetail: jest.fn((membership, user) => ({
+        ...toMembershipSummary(membership),
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          createdAt: user.createdAt.toISOString(),
+          updatedAt: user.updatedAt.toISOString(),
+        },
+      })),
     };
     tasksService = {
       listTasksForWorkspace: jest.fn(),
+    };
+    securityTelemetryService = {
+      record: jest.fn(),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -92,6 +113,8 @@ describe('WorkspacesService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: MembershipsService, useValue: membershipsService },
         { provide: TasksService, useValue: tasksService },
+        WorkspacePolicyService,
+        { provide: SecurityTelemetryService, useValue: securityTelemetryService },
       ],
     }).compile();
 
@@ -367,6 +390,96 @@ describe('WorkspacesService', () => {
       ForbiddenException,
     );
     expect(prisma.workspace.delete).not.toHaveBeenCalled();
+  });
+
+  it('transfers ownership from acting owner to another member', async () => {
+    membershipsService.requireMembership
+      .mockResolvedValueOnce({
+        id: 'membership-owner',
+        workspaceId: 'workspace-1',
+        userId: 'user-1',
+        role: 'owner',
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      })
+      .mockResolvedValueOnce({
+        id: 'membership-member',
+        workspaceId: 'workspace-1',
+        userId: 'user-2',
+        role: 'member',
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      });
+    prisma.workspaceMembership.update
+      .mockResolvedValueOnce({
+        id: 'membership-member',
+        workspaceId: 'workspace-1',
+        userId: 'user-2',
+        role: 'owner',
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+        user: {
+          id: 'user-2',
+          email: 'member@example.com',
+          displayName: 'Member',
+          createdAt: new Date('2026-03-26T00:00:00.000Z'),
+          updatedAt: new Date('2026-03-26T00:00:00.000Z'),
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'membership-owner',
+        workspaceId: 'workspace-1',
+        userId: 'user-1',
+        role: 'member',
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+        user: {
+          id: 'user-1',
+          email: 'owner@example.com',
+          displayName: 'Owner',
+          createdAt: new Date('2026-03-26T00:00:00.000Z'),
+          updatedAt: new Date('2026-03-26T00:00:00.000Z'),
+        },
+      });
+
+    const result = await service.transferOwnership('workspace-1', 'user-1', 'user-2');
+
+    expect(result.previousOwnerMembership.role).toBe('member');
+    expect(result.nextOwnerMembership.role).toBe('owner');
+    expect(prisma.workspaceMembership.update).toHaveBeenCalledTimes(2);
+    expect(securityTelemetryService.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'destructive',
+        eventName: 'workspace.ownership.transfer',
+        outcome: 'success',
+      }),
+    );
+  });
+
+  it('rejects ownership transfer when the acting user is not an owner', async () => {
+    membershipsService.requireMembership
+      .mockResolvedValueOnce({
+        id: 'membership-owner',
+        workspaceId: 'workspace-1',
+        userId: 'user-1',
+        role: 'member',
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      })
+      .mockResolvedValueOnce({
+        id: 'membership-member',
+        workspaceId: 'workspace-1',
+        userId: 'user-2',
+        role: 'member',
+        createdAt: new Date('2026-03-26T00:00:00.000Z'),
+      });
+
+    await expect(service.transferOwnership('workspace-1', 'user-1', 'user-2')).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(prisma.workspaceMembership.update).not.toHaveBeenCalled();
+    expect(securityTelemetryService.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'destructive',
+        eventName: 'workspace.ownership.transfer',
+        outcome: 'failure',
+      }),
+    );
   });
 
   it('propagates missing membership failures when deleting a workspace', async () => {

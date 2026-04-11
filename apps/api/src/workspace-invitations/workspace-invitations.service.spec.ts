@@ -9,6 +9,7 @@ import { Test } from '@nestjs/testing';
 import { WorkspaceRole as PrismaWorkspaceRole } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import type { UserSummary, WorkspaceMemberDetail } from '@teamwork/types';
+import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -94,6 +95,9 @@ describe('WorkspaceInvitationsService', () => {
   let configService: {
     get: jest.Mock;
   };
+  let securityTelemetryService: {
+    record: jest.Mock;
+  };
 
   beforeEach(async () => {
     jest.useFakeTimers().setSystemTime(suiteNow);
@@ -173,6 +177,9 @@ describe('WorkspaceInvitationsService', () => {
       findByEmail: jest.fn(),
       getByIdOrThrow: jest.fn(),
     };
+    securityTelemetryService = {
+      record: jest.fn(),
+    };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -181,6 +188,7 @@ describe('WorkspaceInvitationsService', () => {
         { provide: ConfigService, useValue: configService },
         { provide: MembershipsService, useValue: membershipsService },
         { provide: UsersService, useValue: usersService },
+        { provide: SecurityTelemetryService, useValue: securityTelemetryService },
       ],
     }).compile();
 

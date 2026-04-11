@@ -9,6 +9,7 @@ import type {
   UserSummary,
 } from '@teamwork/types';
 import { isPrismaUniqueConstraintForField } from '../common/utils/prisma-error.util';
+import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { UsersService } from '../users/users.service';
@@ -45,6 +46,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly workspacesService: WorkspacesService,
     private readonly membershipsService: MembershipsService,
+    private readonly securityTelemetryService: SecurityTelemetryService,
   ) {}
 
   async register(
@@ -55,6 +57,16 @@ export class AuthService {
     const existingUser = await this.usersService.findByEmail(normalizedEmail);
 
     if (existingUser) {
+      this.securityTelemetryService.record({
+        category: 'auth',
+        eventName: 'auth.register',
+        outcome: 'failure',
+        ipAddress: metadata.ipAddress ?? null,
+        userAgent: metadata.userAgent ?? null,
+        details: {
+          reason: 'email_conflict',
+        },
+      });
       throw new ConflictException('A user with that email already exists.');
     }
 
@@ -100,7 +112,7 @@ export class AuthService {
     const accessToken = await this.createAccessToken(userSummary, session.sessionId);
     const workspaces = await this.workspacesService.listForUser(result.user.id);
 
-    return {
+    const payload = {
       user: userSummary,
       workspace: this.workspacesService.toSummary(result.workspace),
       memberships: [this.membershipsService.toSummary(result.membership)],
@@ -109,6 +121,17 @@ export class AuthService {
       refreshToken: session.refreshToken,
       sessionId: session.sessionId,
     };
+
+    this.securityTelemetryService.record({
+      category: 'auth',
+      eventName: 'auth.register',
+      outcome: 'success',
+      actorUserId: result.user.id,
+      ipAddress: metadata.ipAddress ?? null,
+      userAgent: metadata.userAgent ?? null,
+    });
+
+    return payload;
   }
 
   async login(
@@ -119,12 +142,33 @@ export class AuthService {
     const user = await this.usersService.findByEmail(normalizedEmail);
 
     if (!user) {
+      this.securityTelemetryService.record({
+        category: 'auth',
+        eventName: 'auth.login',
+        outcome: 'failure',
+        ipAddress: metadata.ipAddress ?? null,
+        userAgent: metadata.userAgent ?? null,
+        details: {
+          reason: 'invalid_credentials',
+        },
+      });
       throw new UnauthorizedException('Invalid email or password.');
     }
 
     const passwordMatches = await compare(dto.password, user.passwordHash);
 
     if (!passwordMatches) {
+      this.securityTelemetryService.record({
+        category: 'auth',
+        eventName: 'auth.login',
+        outcome: 'failure',
+        actorUserId: user.id,
+        ipAddress: metadata.ipAddress ?? null,
+        userAgent: metadata.userAgent ?? null,
+        details: {
+          reason: 'invalid_credentials',
+        },
+      });
       throw new UnauthorizedException('Invalid email or password.');
     }
 
@@ -133,13 +177,24 @@ export class AuthService {
     const accessToken = await this.createAccessToken(userSummary, session.sessionId);
     const workspaces = await this.workspacesService.listForUser(user.id);
 
-    return {
+    const payload = {
       user: userSummary,
       workspaces,
       accessToken,
       refreshToken: session.refreshToken,
       sessionId: session.sessionId,
     };
+
+    this.securityTelemetryService.record({
+      category: 'auth',
+      eventName: 'auth.login',
+      outcome: 'success',
+      actorUserId: user.id,
+      ipAddress: metadata.ipAddress ?? null,
+      userAgent: metadata.userAgent ?? null,
+    });
+
+    return payload;
   }
 
   async me(userId: string) {
@@ -161,22 +216,48 @@ export class AuthService {
     refreshToken: string,
     metadata: SessionClientMetadata = {},
   ): Promise<RefreshedSessionResult> {
-    const rotatedSession = await this.authSessionsService.rotateSession(refreshToken, metadata);
-    const user = await this.usersService.getByIdOrThrow(rotatedSession.userId);
-    const userSummary = this.usersService.toSummary(user);
-    const accessToken = await this.createAccessToken(userSummary, rotatedSession.sessionId);
+    try {
+      const rotatedSession = await this.authSessionsService.rotateSession(refreshToken, metadata);
+      const user = await this.usersService.getByIdOrThrow(rotatedSession.userId);
+      const userSummary = this.usersService.toSummary(user);
+      const accessToken = await this.createAccessToken(userSummary, rotatedSession.sessionId);
 
-    return {
-      accessToken,
-      refreshToken: rotatedSession.refreshToken,
-      sessionId: rotatedSession.sessionId,
-    };
+      this.securityTelemetryService.record({
+        category: 'auth',
+        eventName: 'auth.refresh',
+        outcome: 'success',
+        actorUserId: rotatedSession.userId,
+        ipAddress: metadata.ipAddress ?? null,
+        userAgent: metadata.userAgent ?? null,
+      });
+
+      return {
+        accessToken,
+        refreshToken: rotatedSession.refreshToken,
+        sessionId: rotatedSession.sessionId,
+      };
+    } catch (error) {
+      this.securityTelemetryService.record({
+        category: 'auth',
+        eventName: 'auth.refresh',
+        outcome: 'failure',
+        ipAddress: metadata.ipAddress ?? null,
+        userAgent: metadata.userAgent ?? null,
+        details: {
+          reason: error instanceof Error ? error.message : 'unknown_error',
+        },
+      });
+      throw error;
+    }
   }
 
   async logout(input: { accessToken?: string | null; refreshToken?: string | null }): Promise<void> {
+    let actorUserId: string | null = null;
+
     if (input.accessToken) {
       try {
         const payload = await this.verifyAccessToken(input.accessToken);
+        actorUserId = payload.sub;
         await this.authSessionsService.revokeSessionById(payload.sessionId, 'logout');
       } catch {
         // Ignore malformed/expired access tokens during logout cleanup.
@@ -186,10 +267,23 @@ export class AuthService {
     if (input.refreshToken) {
       await this.authSessionsService.revokeSessionByRefreshToken(input.refreshToken, 'logout');
     }
+
+    this.securityTelemetryService.record({
+      category: 'auth',
+      eventName: 'auth.logout',
+      outcome: 'success',
+      actorUserId,
+    });
   }
 
   async logoutAll(userId: string): Promise<void> {
     await this.authSessionsService.revokeAllSessionsForUser(userId, 'logout_all');
+    this.securityTelemetryService.record({
+      category: 'auth',
+      eventName: 'auth.logout_all',
+      outcome: 'success',
+      actorUserId: userId,
+    });
   }
 
   private async createAccessToken(user: UserSummary, sessionId: string): Promise<string> {

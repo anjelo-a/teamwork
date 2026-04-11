@@ -3,10 +3,13 @@ import type {
   AuthMeResponse,
   AuthenticatedWorkspace,
   InviteWorkspaceMemberResult,
+  SecurityTelemetryAlert,
+  SecurityTelemetryEvent,
   PublicWorkspaceInvitationLookup,
   PublicWorkspaceShareLinkLookup,
   RegisterResponse,
   WorkspaceBoardDataResponse,
+  WorkspaceBulkInvitationRevocationResponse,
   TaskListResponse,
   TaskResponse,
   TaskActorSummary,
@@ -19,9 +22,11 @@ import type {
   WorkspaceMemberDetail,
   WorkspaceMemberResponse,
   WorkspaceMemberRemovalResponse,
+  WorkspaceOwnershipTransferResponse,
   WorkspaceMembersResponse,
   WorkspaceMembershipSummary,
   WorkspaceResponse,
+  WorkspaceSecurityDashboardResponse,
   WorkspaceShareLinkResponse,
   WorkspaceSummary,
 } from '@teamwork/types';
@@ -145,6 +150,37 @@ export function parseWorkspaceShareLinkResponse(
 
   return {
     shareLink: parseWorkspaceShareLinkSummary(record['shareLink']),
+  };
+}
+
+export function parseWorkspaceOwnershipTransferResponse(
+  value: unknown,
+): WorkspaceOwnershipTransferResponse {
+  const record = readRecord(value);
+
+  return {
+    previousOwnerMembership: parseWorkspaceMemberDetail(record['previousOwnerMembership']),
+    nextOwnerMembership: parseWorkspaceMemberDetail(record['nextOwnerMembership']),
+  };
+}
+
+export function parseWorkspaceBulkInvitationRevocationResponse(
+  value: unknown,
+): WorkspaceBulkInvitationRevocationResponse {
+  const record = readRecord(value);
+
+  return {
+    revokedCount: readNumber(record['revokedCount']),
+  };
+}
+
+export function parseWorkspaceSecurityDashboardResponse(
+  value: unknown,
+): WorkspaceSecurityDashboardResponse {
+  const record = readRecord(value);
+
+  return {
+    dashboard: parseWorkspaceSecurityDashboard(record['dashboard']),
   };
 }
 
@@ -336,6 +372,59 @@ function parsePublicWorkspaceShareLinkSummary(
   };
 }
 
+function parseWorkspaceSecurityDashboard(
+  value: unknown,
+): WorkspaceSecurityDashboardResponse['dashboard'] {
+  const record = readRecord(value);
+  const countersRecord = readRecord(record['counters']);
+
+  return {
+    workspaceId: readString(record['workspaceId']),
+    generatedAt: readString(record['generatedAt']),
+    windowMinutes: readNumber(record['windowMinutes']),
+    counters: {
+      authFailures: readNumber(countersRecord['authFailures']),
+      invitationFailures: readNumber(countersRecord['invitationFailures']),
+      destructiveActions: readNumber(countersRecord['destructiveActions']),
+      destructiveFailures: readNumber(countersRecord['destructiveFailures']),
+      authorizationFailures: readNumber(countersRecord['authorizationFailures']),
+    },
+    alerts: readArray(record['alerts'], parseSecurityTelemetryAlert),
+    recentEvents: readArray(record['recentEvents'], parseSecurityTelemetryEvent),
+  };
+}
+
+function parseSecurityTelemetryAlert(value: unknown): SecurityTelemetryAlert {
+  const record = readRecord(value);
+
+  return {
+    id: readString(record['id']),
+    severity: readSecurityTelemetrySeverity(record['severity']),
+    title: readString(record['title']),
+    description: readString(record['description']),
+    count: readNumber(record['count']),
+    threshold: readNumber(record['threshold']),
+  };
+}
+
+function parseSecurityTelemetryEvent(value: unknown): SecurityTelemetryEvent {
+  const record = readRecord(value);
+
+  return {
+    id: readString(record['id']),
+    category: readSecurityTelemetryCategory(record['category']),
+    eventName: readString(record['eventName']),
+    outcome: readSecurityTelemetryOutcome(record['outcome']),
+    severity: readSecurityTelemetrySeverity(record['severity']),
+    workspaceId: readNullableString(record['workspaceId']),
+    actorUserId: readNullableString(record['actorUserId']),
+    ipAddress: readNullableString(record['ipAddress']),
+    userAgent: readNullableString(record['userAgent']),
+    createdAt: readString(record['createdAt']),
+    details: readRecord(record['details']),
+  };
+}
+
 function parseUserInvitationInboxItem(
   value: unknown,
 ): UserInvitationsResponse['invitations'][number] {
@@ -487,4 +576,33 @@ function readPublicInvitationStatus(
   }
 
   throw new Error('Expected public invitation status.');
+}
+
+function readSecurityTelemetryCategory(value: unknown): SecurityTelemetryEvent['category'] {
+  if (
+    value === 'auth' ||
+    value === 'invitation' ||
+    value === 'destructive' ||
+    value === 'authorization'
+  ) {
+    return value;
+  }
+
+  throw new Error('Expected security telemetry category.');
+}
+
+function readSecurityTelemetryOutcome(value: unknown): SecurityTelemetryEvent['outcome'] {
+  if (value === 'success' || value === 'failure') {
+    return value;
+  }
+
+  throw new Error('Expected security telemetry outcome.');
+}
+
+function readSecurityTelemetrySeverity(value: unknown): SecurityTelemetryAlert['severity'] {
+  if (value === 'info' || value === 'warning' || value === 'critical') {
+    return value;
+  }
+
+  throw new Error('Expected security telemetry severity.');
 }

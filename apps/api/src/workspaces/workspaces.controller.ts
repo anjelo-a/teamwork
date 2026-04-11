@@ -11,17 +11,19 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import type { WorkspaceBoardDataResponse } from '@teamwork/types';
+import type { WorkspaceBoardDataResponse, WorkspaceSecurityDashboard } from '@teamwork/types';
 import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
 import { WorkspaceMemberGuard } from '../common/auth/workspace-member.guard';
-import { WorkspaceRoleGuard } from '../common/auth/workspace-role.guard';
-import { WorkspaceRoles } from '../common/auth/workspace-roles.decorator';
+import { WorkspacePolicy } from '../common/policy/workspace-policy.decorator';
+import { WorkspacePolicyGuard } from '../common/policy/workspace-policy.guard';
+import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { MembershipsService } from '../memberships/memberships.service';
 import { WorkspaceInvitationsService } from '../workspace-invitations/workspace-invitations.service';
 import { AddWorkspaceMemberDto } from './dto/add-workspace-member.dto';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
+import { TransferWorkspaceOwnershipDto } from './dto/transfer-workspace-ownership.dto';
 import { UpdateWorkspaceMemberDto } from './dto/update-workspace-member.dto';
 import { WorkspaceBoardFiltersDto } from './dto/workspace-board-filters.dto';
 import { UpdateWorkspaceShareLinkDto } from './dto/update-workspace-share-link.dto';
@@ -35,6 +37,7 @@ export class WorkspacesController {
     private readonly workspacesService: WorkspacesService,
     private readonly membershipsService: MembershipsService,
     private readonly workspaceInvitationsService: WorkspaceInvitationsService,
+    private readonly securityTelemetryService: SecurityTelemetryService,
   ) {}
 
   @Get()
@@ -63,8 +66,8 @@ export class WorkspacesController {
   }
 
   @Patch(':workspaceId')
-  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
-  @WorkspaceRoles('owner')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.settings.update')
   async updateWorkspace(
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
@@ -97,8 +100,8 @@ export class WorkspacesController {
   }
 
   @Delete(':workspaceId')
-  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
-  @WorkspaceRoles('owner')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.delete')
   async deleteWorkspace(
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
@@ -115,8 +118,8 @@ export class WorkspacesController {
   }
 
   @Get(':workspaceId/invitations')
-  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
-  @WorkspaceRoles('owner')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.invitations.manage')
   async listInvitations(@Param('workspaceId', ParseUUIDPipe) workspaceId: string) {
     return {
       invitations: await this.workspaceInvitationsService.listPendingInvitations(workspaceId),
@@ -124,8 +127,8 @@ export class WorkspacesController {
   }
 
   @Get(':workspaceId/share-link')
-  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
-  @WorkspaceRoles('owner')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.invitations.manage')
   async getWorkspaceShareLink(
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
@@ -134,8 +137,8 @@ export class WorkspacesController {
   }
 
   @Post(':workspaceId/members')
-  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
-  @WorkspaceRoles('owner')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.invitations.manage')
   async addMember(
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
@@ -150,8 +153,8 @@ export class WorkspacesController {
   }
 
   @Patch(':workspaceId/members/:userId')
-  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
-  @WorkspaceRoles('owner')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.members.manage')
   async updateMemberRole(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
@@ -163,8 +166,8 @@ export class WorkspacesController {
   }
 
   @Patch(':workspaceId/share-link')
-  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
-  @WorkspaceRoles('owner')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.invitations.manage')
   async updateWorkspaceShareLink(
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
@@ -178,8 +181,8 @@ export class WorkspacesController {
   }
 
   @Post(':workspaceId/share-link/regenerate')
-  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
-  @WorkspaceRoles('owner')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.invitations.manage')
   async regenerateWorkspaceShareLink(
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
@@ -188,13 +191,45 @@ export class WorkspacesController {
   }
 
   @Delete(':workspaceId/share-link')
-  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
-  @WorkspaceRoles('owner')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.invitations.manage')
   async disableWorkspaceShareLink(
     @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
   ) {
     return this.workspaceInvitationsService.disableWorkspaceShareLink(workspaceId, user.id);
+  }
+
+  @Post(':workspaceId/ownership/transfer')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.ownership.transfer')
+  async transferWorkspaceOwnership(
+    @CurrentUser() user: RequestUser,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Body() dto: TransferWorkspaceOwnershipDto,
+  ) {
+    return this.workspacesService.transferOwnership(workspaceId, user.id, dto.nextOwnerUserId);
+  }
+
+  @Post(':workspaceId/invitations/revoke-all')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.invitations.manage')
+  async revokeAllInvitations(
+    @CurrentUser() user: RequestUser,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+  ) {
+    return this.workspaceInvitationsService.revokeAllPendingInvitations(workspaceId, user.id);
+  }
+
+  @Get(':workspaceId/security-dashboard')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.security.view')
+  async getWorkspaceSecurityDashboard(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+  ): Promise<{ dashboard: WorkspaceSecurityDashboard }> {
+    return {
+      dashboard: this.securityTelemetryService.getWorkspaceDashboard({ workspaceId }),
+    };
   }
 
   @Delete(':workspaceId/members/:userId')
@@ -208,12 +243,13 @@ export class WorkspacesController {
   }
 
   @Delete(':workspaceId/invitations/:invitationId')
-  @UseGuards(WorkspaceMemberGuard, WorkspaceRoleGuard)
-  @WorkspaceRoles('owner')
+  @UseGuards(WorkspaceMemberGuard, WorkspacePolicyGuard)
+  @WorkspacePolicy('workspace.invitations.manage')
   async revokeInvitation(
+    @CurrentUser() user: RequestUser,
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('invitationId', ParseUUIDPipe) invitationId: string,
   ) {
-    return this.workspaceInvitationsService.revokeInvitation(workspaceId, invitationId);
+    return this.workspaceInvitationsService.revokeInvitation(workspaceId, invitationId, user.id);
   }
 }

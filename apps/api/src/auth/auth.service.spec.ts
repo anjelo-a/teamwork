@@ -2,6 +2,7 @@ import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { hash } from 'bcrypt';
+import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -65,6 +66,7 @@ describe('AuthService', () => {
     toSummary: jest.Mock;
   };
   let membershipsService: { createMembership: jest.Mock; toSummary: jest.Mock };
+  let securityTelemetryService: { record: jest.Mock };
   let service: AuthService;
 
   beforeEach(async () => {
@@ -100,6 +102,9 @@ describe('AuthService', () => {
       createMembership: jest.fn(),
       toSummary: jest.fn().mockReturnValue(membershipSummary),
     };
+    securityTelemetryService = {
+      record: jest.fn(),
+    };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -110,6 +115,7 @@ describe('AuthService', () => {
         { provide: UsersService, useValue: usersService },
         { provide: WorkspacesService, useValue: workspacesService },
         { provide: MembershipsService, useValue: membershipsService },
+        { provide: SecurityTelemetryService, useValue: securityTelemetryService },
       ],
     }).compile();
 

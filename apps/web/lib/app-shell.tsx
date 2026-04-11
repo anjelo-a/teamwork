@@ -6,10 +6,11 @@ import {
   InboxIcon,
   InvitationsIcon,
   MembersIcon,
+  SettingsIcon,
 } from '@/components/app-shell/icons';
 
 export interface SidebarNavigationItem {
-  key: 'board' | 'members' | 'invitations' | 'inbox' | 'calendar';
+  key: 'board' | 'members' | 'invitations' | 'inbox' | 'calendar' | 'settings';
   label: string;
   description: string;
   href: string;
@@ -52,6 +53,10 @@ export function getWorkspaceCalendarHref(workspaceId: string): string {
   return `/workspaces/${workspaceId}/calendar`;
 }
 
+export function getWorkspaceSettingsHref(workspaceId: string): string {
+  return `/workspaces/${workspaceId}/settings`;
+}
+
 export function getInvitationInboxHref(): string {
   return '/invitation-inbox';
 }
@@ -67,6 +72,10 @@ export function getWorkspaceScopedHref(pathname: string, workspaceId: string): s
 
   if (pathname.endsWith('/calendar')) {
     return getWorkspaceCalendarHref(workspaceId);
+  }
+
+  if (pathname.endsWith('/settings')) {
+    return getWorkspaceSettingsHref(workspaceId);
   }
 
   return getWorkspaceBoardHref(workspaceId);
@@ -112,6 +121,13 @@ export function getSidebarNavigationItems(
       description: 'Timeline view',
       href: getWorkspaceCalendarHref(resolvedWorkspaceId),
       icon: <CalendarIcon />,
+    },
+    {
+      key: 'settings',
+      label: 'Settings',
+      description: 'Owner admin',
+      href: getWorkspaceSettingsHref(resolvedWorkspaceId),
+      icon: <SettingsIcon />,
     },
   ];
 }
@@ -184,6 +200,18 @@ export function deriveShellRouteContext(
         title: 'Calendar',
         subtitle: `Track ${workspaceName} due dates across month, week, and day views.`,
         eyebrow: 'Workspace calendar',
+      },
+      currentWorkspace,
+    };
+  }
+
+  if (pathname.endsWith('/settings')) {
+    return {
+      definition: {
+        key: 'settings',
+        title: 'Settings',
+        subtitle: `Owner controls, governance actions, and security telemetry for ${workspaceName}.`,
+        eyebrow: 'Workspace administration',
       },
       currentWorkspace,
     };
