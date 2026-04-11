@@ -96,7 +96,7 @@ function createUniqueEmail(prefix: string): string {
 }
 
 async function readInvitationId(accessToken: string, workspaceId: string): Promise<string> {
-  const response = await fetch('http://127.0.0.1:3000/users/me/invitations', {
+  const response = await fetch('http://localhost:3000/users/me/invitations', {
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${accessToken}`,
@@ -126,7 +126,7 @@ async function readInvitationId(accessToken: string, workspaceId: string): Promi
 
 async function acceptInvitation(invitationId: string, accessToken: string): Promise<void> {
   const response = await fetch(
-    `http://127.0.0.1:3000/workspaces/invitations/${invitationId}/accept`,
+    `http://localhost:3000/workspaces/invitations/${invitationId}/accept`,
     {
       method: 'POST',
       headers: {

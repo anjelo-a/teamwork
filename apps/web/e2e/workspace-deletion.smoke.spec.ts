@@ -37,7 +37,7 @@ async function registerUser(
     password: string;
   },
 ) {
-  const response = await request.post('http://127.0.0.1:3000/auth/register', {
+  const response = await request.post('http://localhost:3000/auth/register', {
     data: {
       displayName: input.name,
       email: input.email,

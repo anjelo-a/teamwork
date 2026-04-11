@@ -17,13 +17,17 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'pnpm --dir ../api start:dev',
+      command: isCI ? 'pnpm --dir ../api start' : 'pnpm --dir ../api start:dev',
       url: 'http://localhost:3000/',
       reuseExistingServer: true,
       timeout: 120000,
     },
     {
-      command: 'NEXT_PUBLIC_API_BASE_URL=http://localhost:3000 pnpm dev',
+      command: 'pnpm dev',
+      env: {
+        ...process.env,
+        NEXT_PUBLIC_API_BASE_URL: 'http://localhost:3000',
+      },
       url: 'http://localhost:3001',
       reuseExistingServer: true,
       timeout: 120000,
