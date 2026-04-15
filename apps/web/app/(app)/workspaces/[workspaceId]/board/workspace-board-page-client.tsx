@@ -53,6 +53,7 @@ export function WorkspaceBoardPageClient({
   initialBoardData,
 }: WorkspaceBoardPageClientProps) {
   const { auth } = useAuthSession();
+  const initialMembers = initialBoardData?.membersLoaded ? initialBoardData.members : null;
   const [statusFilter, setStatusFilter] = useState(DEFAULT_BOARD_STATUS_FILTER);
   const [assigneeFilter, setAssigneeFilter] = useState(DEFAULT_BOARD_ASSIGNEE_FILTER);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
@@ -87,14 +88,18 @@ export function WorkspaceBoardPageClient({
     useStaleWhileRevalidate: true,
     initialData: backendAssignmentFilter ? null : initialBoardData,
   });
+  const shouldLoadMembers =
+    initialMembers === null &&
+    (boardDataQuery.status === 'success' || initialBoardData !== null);
   const membersQuery = useAuthenticatedApiResource({
     key: `workspace:${workspaceId}:members:board`,
     load: (accessToken) => getWorkspaceMembers(workspaceId, accessToken),
     cacheTtlMs: BOARD_CACHE_TTL_MS,
     useStaleWhileRevalidate: true,
-    enabled: boardDataQuery.status === 'success' || initialBoardData !== null,
+    enabled: shouldLoadMembers,
   });
-  const members = membersQuery.status === 'success' ? membersQuery.data.members : null;
+  const members = membersQuery.status === 'success' ? membersQuery.data.members : initialMembers;
+  const membersUnavailable = shouldLoadMembers && membersQuery.status === 'error';
   const assigneeOptions = useMemo(
     () => buildBoardAssigneeOptions(members, auth.user),
     [auth.user, members],
@@ -171,7 +176,7 @@ export function WorkspaceBoardPageClient({
 
       {boardDataQuery.status === 'success' ? (
         <div className="flex flex-col gap-3" data-perf-board-ready="true">
-          {membersQuery.status === 'loading' ? (
+          {shouldLoadMembers && membersQuery.status === 'loading' ? (
             <PageSurface
               eyebrow="Loading filters"
               title="Members loading in background"
@@ -179,7 +184,7 @@ export function WorkspaceBoardPageClient({
             />
           ) : null}
 
-          {membersQuery.status === 'error' ? (
+          {membersUnavailable ? (
             <PageSurface
               eyebrow="Limited filters"
               title="Members unavailable"
@@ -203,7 +208,7 @@ export function WorkspaceBoardPageClient({
             statusFilter={statusFilter}
             statusOptions={STATUS_OPTIONS}
             currentUserId={auth.user.id}
-            membersUnavailable={membersQuery.status === 'error'}
+            membersUnavailable={membersUnavailable}
             onStatusChange={setStatusFilter}
             onAssigneeChange={setAssigneeFilter}
             onTaskOpen={openTaskDetailsModal}
@@ -215,7 +220,7 @@ export function WorkspaceBoardPageClient({
         open={isCreateTaskOpen}
         workspaceId={workspaceId}
         members={members}
-        membersUnavailable={membersQuery.status !== 'success'}
+        membersUnavailable={members === null}
         onClose={closeCreateTaskModal}
         onCreated={(task) => {
           setTaskItemsState((current) => ({
@@ -242,7 +247,7 @@ export function WorkspaceBoardPageClient({
         taskId={selectedTaskId}
         workspaceId={workspaceId}
         members={members}
-        membersUnavailable={membersQuery.status !== 'success'}
+        membersUnavailable={members === null}
         onClose={closeTaskDetailsModal}
         onTaskChanged={(task) => {
           setTaskItemsState((current) => ({

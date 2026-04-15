@@ -85,6 +85,16 @@ export function useAuthenticatedApiResource<T>({
     const cacheKey = `${key}::${accessToken}`;
     const requestToken = Symbol(cacheKey);
     requestTokenRef.current = requestToken;
+    const existingCacheEntry = cacheRef.current.get(cacheKey);
+
+    if (initialData !== null && !existingCacheEntry) {
+      cacheRef.current.set(cacheKey, {
+        // Keep initial payload available as stale fallback for SWR revalidation failures.
+        expiresAt: cacheTtlMs > 0 ? Date.now() + cacheTtlMs : Date.now(),
+        data: initialData,
+      });
+    }
+
     const cachedEntry = cacheRef.current.get(cacheKey);
     const cachedData =
       cachedEntry && cachedEntry.expiresAt > Date.now() ? cachedEntry.data : null;

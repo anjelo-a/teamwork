@@ -1,5 +1,5 @@
-import type { WorkspaceBoardDataResponse } from '@teamwork/types';
 import { readWorkspaceIdFromParams } from '@/lib/route-params';
+import { loadInitialWorkspaceBoardData } from '@/lib/api/server-bootstrap';
 import { WorkspaceBoardPageClient } from './workspace-board-page-client';
 
 interface WorkspaceBoardPageProps {
@@ -13,7 +13,7 @@ export default async function WorkspaceBoardPage({
 }: WorkspaceBoardPageProps) {
   const resolvedParams = await params;
   const workspaceId = readWorkspaceIdFromParams(resolvedParams);
-  const initialBoardData = loadInitialBoardData(workspaceId);
+  const initialBoardData = await loadInitialWorkspaceBoardData(workspaceId);
 
   return (
     <WorkspaceBoardPageClient
@@ -21,11 +21,4 @@ export default async function WorkspaceBoardPage({
       initialBoardData={initialBoardData}
     />
   );
-}
-
-function loadInitialBoardData(
-  workspaceId: string,
-): WorkspaceBoardDataResponse | null {
-  void workspaceId;
-  return null;
 }
