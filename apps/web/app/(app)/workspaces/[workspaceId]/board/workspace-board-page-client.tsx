@@ -57,6 +57,7 @@ export function WorkspaceBoardPageClient({
   const [assigneeFilter, setAssigneeFilter] = useState(DEFAULT_BOARD_ASSIGNEE_FILTER);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [boardRetryNonce, setBoardRetryNonce] = useState(0);
   const [taskItemsState, setTaskItemsState] = useState<{
     key: string | null;
     overlay: TaskListOverlay;
@@ -69,23 +70,8 @@ export function WorkspaceBoardPageClient({
   });
   const { setActionOverride } = useAppShellAction();
 
-  const membersQuery = useAuthenticatedApiResource({
-    key: `workspace:${workspaceId}:members:board`,
-    load: (accessToken) => getWorkspaceMembers(workspaceId, accessToken),
-    cacheTtlMs: BOARD_CACHE_TTL_MS,
-    useStaleWhileRevalidate: true,
-  });
-  const members = membersQuery.status === 'success' ? membersQuery.data.members : null;
-  const assigneeOptions = useMemo(
-    () => buildBoardAssigneeOptions(members, auth.user),
-    [auth.user, members],
-  );
-  const resolvedAssigneeFilter = useMemo(
-    () => resolveBoardAssigneeFilter(assigneeOptions, assigneeFilter),
-    [assigneeFilter, assigneeOptions],
-  );
-  const backendAssignmentFilter = getBackendAssignmentFilter(resolvedAssigneeFilter);
-  const boardQueryKey = `workspace:${workspaceId}:board-data:${backendAssignmentFilter ?? 'everyone'}`;
+  const backendAssignmentFilter = getBackendAssignmentFilter(assigneeFilter);
+  const boardQueryKey = `workspace:${workspaceId}:board-data:${backendAssignmentFilter ?? 'everyone'}:retry:${String(boardRetryNonce)}`;
 
   const boardDataQuery = useAuthenticatedApiResource({
     key: boardQueryKey,
@@ -101,6 +87,22 @@ export function WorkspaceBoardPageClient({
     useStaleWhileRevalidate: true,
     initialData: backendAssignmentFilter ? null : initialBoardData,
   });
+  const membersQuery = useAuthenticatedApiResource({
+    key: `workspace:${workspaceId}:members:board`,
+    load: (accessToken) => getWorkspaceMembers(workspaceId, accessToken),
+    cacheTtlMs: BOARD_CACHE_TTL_MS,
+    useStaleWhileRevalidate: true,
+    enabled: boardDataQuery.status === 'success' || initialBoardData !== null,
+  });
+  const members = membersQuery.status === 'success' ? membersQuery.data.members : null;
+  const assigneeOptions = useMemo(
+    () => buildBoardAssigneeOptions(members, auth.user),
+    [auth.user, members],
+  );
+  const resolvedAssigneeFilter = useMemo(
+    () => resolveBoardAssigneeFilter(assigneeOptions, assigneeFilter),
+    [assigneeFilter, assigneeOptions],
+  );
   const taskQueryKey = `workspace:${workspaceId}:tasks:board:${backendAssignmentFilter ?? 'everyone'}`;
   const baseTaskItems = boardDataQuery.status === 'success' ? boardDataQuery.data.tasks : [];
   const taskItems =
@@ -162,7 +164,7 @@ export function WorkspaceBoardPageClient({
           tone="danger"
           actionLabel="Retry board"
           onAction={() => {
-            window.location.reload();
+            setBoardRetryNonce((current) => current + 1);
           }}
         />
       ) : null}

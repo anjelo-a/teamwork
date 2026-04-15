@@ -9,6 +9,7 @@ interface UseAuthenticatedApiResourceOptions<T> {
   cacheTtlMs?: number;
   useStaleWhileRevalidate?: boolean;
   initialData?: T | null;
+  enabled?: boolean;
 }
 
 type ResourceState<T> =
@@ -43,25 +44,26 @@ type StoredErrorState = StoredResourceState & {
 
 type StoredResourceResult<T> = StoredLoadingState | StoredSuccessState<T> | StoredErrorState;
 
+const SHARED_RESOURCE_CACHE = new Map<
+  string,
+  {
+    expiresAt: number;
+    data: unknown;
+  }
+>();
+const INFLIGHT_RESOURCE_REQUESTS = new Map<string, Promise<unknown>>();
+
 export function useAuthenticatedApiResource<T>({
   key,
   load,
   cacheTtlMs = 0,
   useStaleWhileRevalidate = false,
   initialData = null,
+  enabled = true,
 }: UseAuthenticatedApiResourceOptions<T>): ResourceState<T> {
   const { status, accessToken } = useAuthSession();
   const loadRef = useRef(load);
   const requestTokenRef = useRef<symbol | null>(null);
-  const cacheRef = useRef(
-    new Map<
-      string,
-      {
-        expiresAt: number;
-        data: T;
-      }
-    >(),
-  );
   const [state, setState] = useState<StoredResourceResult<T>>({
     requestKey: null,
     status: 'loading',
@@ -74,7 +76,7 @@ export function useAuthenticatedApiResource<T>({
   }, [load]);
 
   useEffect(() => {
-    if (status !== 'authenticated' || !accessToken) {
+    if (!enabled || status !== 'authenticated' || !accessToken) {
       requestTokenRef.current = null;
       return;
     }
@@ -82,10 +84,9 @@ export function useAuthenticatedApiResource<T>({
     const cacheKey = `${key}::${accessToken}`;
     const requestToken = Symbol(cacheKey);
     requestTokenRef.current = requestToken;
-    const cachedEntry = cacheRef.current.get(cacheKey);
-    const hasFreshCachedEntry = Boolean(cachedEntry && cachedEntry.expiresAt > Date.now());
+    const cachedData = readFreshCachedValue<T>(cacheKey);
 
-    if (hasFreshCachedEntry && cachedEntry) {
+    if (cachedData !== null) {
       queueMicrotask(() => {
         if (requestTokenRef.current !== requestToken) {
           return;
@@ -94,7 +95,7 @@ export function useAuthenticatedApiResource<T>({
         setState({
           requestKey: key,
           status: 'success',
-          data: cachedEntry.data,
+          data: cachedData,
           error: null,
         });
       });
@@ -123,17 +124,10 @@ export function useAuthenticatedApiResource<T>({
 
     void (async () => {
       try {
-        const data = await loadRef.current(accessToken);
+        const data = await loadResourceWithDedupe(cacheKey, () => loadRef.current(accessToken), cacheTtlMs);
 
         if (requestTokenRef.current !== requestToken) {
           return;
-        }
-
-        if (cacheTtlMs > 0) {
-          cacheRef.current.set(cacheKey, {
-            expiresAt: Date.now() + cacheTtlMs,
-            data,
-          });
         }
 
         setState({
@@ -144,6 +138,17 @@ export function useAuthenticatedApiResource<T>({
         });
       } catch (error) {
         if (requestTokenRef.current !== requestToken) {
+          return;
+        }
+
+        const staleCachedData = readStaleCachedValue<T>(cacheKey);
+        if (useStaleWhileRevalidate && staleCachedData !== null) {
+          setState({
+            requestKey: key,
+            status: 'success',
+            data: staleCachedData,
+            error: null,
+          });
           return;
         }
 
@@ -161,9 +166,9 @@ export function useAuthenticatedApiResource<T>({
         requestTokenRef.current = null;
       }
     };
-  }, [accessToken, cacheTtlMs, initialData, key, status, useStaleWhileRevalidate]);
+  }, [accessToken, cacheTtlMs, enabled, initialData, key, status, useStaleWhileRevalidate]);
 
-  if (status !== 'authenticated' || !accessToken) {
+  if (!enabled || status !== 'authenticated' || !accessToken) {
     return {
       status: 'loading',
       data: null,
@@ -200,4 +205,57 @@ export function useAuthenticatedApiResource<T>({
     data: null,
     error: null,
   };
+}
+
+function readFreshCachedValue<T>(cacheKey: string): T | null {
+  const cachedEntry = SHARED_RESOURCE_CACHE.get(cacheKey);
+
+  if (!cachedEntry) {
+    return null;
+  }
+
+  if (cachedEntry.expiresAt <= Date.now()) {
+    SHARED_RESOURCE_CACHE.delete(cacheKey);
+    return null;
+  }
+
+  return cachedEntry.data as T;
+}
+
+function readStaleCachedValue<T>(cacheKey: string): T | null {
+  const cachedEntry = SHARED_RESOURCE_CACHE.get(cacheKey);
+  return cachedEntry ? (cachedEntry.data as T) : null;
+}
+
+async function loadResourceWithDedupe<T>(
+  cacheKey: string,
+  load: () => Promise<T>,
+  cacheTtlMs: number,
+): Promise<T> {
+  const inflightRequest = INFLIGHT_RESOURCE_REQUESTS.get(cacheKey);
+
+  if (inflightRequest) {
+    return inflightRequest as Promise<T>;
+  }
+
+  const request = load().then((data) => {
+    if (cacheTtlMs > 0) {
+      SHARED_RESOURCE_CACHE.set(cacheKey, {
+        expiresAt: Date.now() + cacheTtlMs,
+        data,
+      });
+    }
+
+    return data;
+  });
+
+  INFLIGHT_RESOURCE_REQUESTS.set(cacheKey, request as Promise<unknown>);
+
+  request.finally(() => {
+    if (INFLIGHT_RESOURCE_REQUESTS.get(cacheKey) === request) {
+      INFLIGHT_RESOURCE_REQUESTS.delete(cacheKey);
+    }
+  });
+
+  return request;
 }
