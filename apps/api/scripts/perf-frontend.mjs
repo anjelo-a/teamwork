@@ -11,7 +11,7 @@ import {
 
 const DEFAULT_WEB_BASE_URL = 'http://127.0.0.1:3001';
 const DEFAULT_RUNS = 10;
-const DEFAULT_TIMEOUT_MS = 30000;
+const DEFAULT_TIMEOUT_MS = 90000;
 const DEFAULT_WARMUP_RUNS = 1;
 const ACCESS_TOKEN_COOKIE_NAME = 'teamwork.accessToken';
 
