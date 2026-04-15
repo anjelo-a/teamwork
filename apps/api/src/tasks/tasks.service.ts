@@ -612,6 +612,7 @@ export class TasksService {
 
   private buildTaskListCacheKey(input: ListTasksForUserInput): string {
     const limit = this.resolveTaskListLimit(input.limit);
+    const referenceDateSegment = this.resolveTaskListCacheReferenceDateSegment(input);
 
     return [
       'tasks:list',
@@ -620,10 +621,18 @@ export class TasksService {
       input.includeDescription === false ? 'without-description' : 'with-description',
       input.assignment ?? 'everyone',
       input.dueBucket ?? 'all',
-      input.referenceDate ?? 'current',
+      referenceDateSegment,
       String(limit),
       input.cursor ?? 'start',
     ].join(':');
+  }
+
+  private resolveTaskListCacheReferenceDateSegment(input: ListTasksForUserInput): string {
+    if (!input.dueBucket || input.dueBucket === 'no_date') {
+      return 'no-reference-date';
+    }
+
+    return input.referenceDate ?? serializeTaskDueDate(this.resolveReferenceDate(undefined)) ?? 'no-reference-date';
   }
 
   private async invalidateTaskListCaches(): Promise<void> {

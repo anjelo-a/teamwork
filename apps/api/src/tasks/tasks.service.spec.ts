@@ -1,10 +1,22 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { TaskStatus as PrismaTaskStatus, type Prisma } from '@prisma/client';
+import { redis } from '../common/redis';
 import { SecurityTelemetryService } from '../common/security/security-telemetry.service';
 import { MembershipsService } from '../memberships/memberships.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TasksService } from './tasks.service';
+
+jest.mock('../common/redis', () => ({
+  redis: {
+    get: jest.fn(),
+    set: jest.fn(),
+    keys: jest.fn(),
+    del: jest.fn(),
+  },
+}));
+
+const redisMock = jest.mocked(redis);
 
 describe('TasksService', () => {
   const workspaceId = 'workspace-1';
@@ -57,6 +69,11 @@ describe('TasksService', () => {
   let service: TasksService;
 
   beforeEach(async () => {
+    redisMock.get.mockReset().mockResolvedValue(null);
+    redisMock.set.mockReset().mockResolvedValue('OK');
+    redisMock.keys.mockReset().mockResolvedValue([]);
+    redisMock.del.mockReset().mockResolvedValue(0);
+
     prisma = {
       task: {
         create: jest.fn(),
@@ -489,6 +506,104 @@ describe('TasksService', () => {
         take: 51,
       }),
     );
+    expect(redisMock.get).toHaveBeenCalledWith(
+      'tasks:list:user-1:workspace-1:with-description:everyone:today:2026-04-02:50:start',
+    );
+  });
+
+  it('uses different cache keys for board and calendar task list responses', async () => {
+    prisma.task.findMany.mockResolvedValue(buildTaskRecordList());
+
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      includeDescription: false,
+    });
+    await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+    });
+
+    expect(redisMock.get).toHaveBeenNthCalledWith(
+      1,
+      'tasks:list:user-1:workspace-1:without-description:everyone:all:no-reference-date:50:start',
+    );
+    expect(redisMock.get).toHaveBeenNthCalledWith(
+      2,
+      'tasks:list:user-1:workspace-1:with-description:everyone:all:no-reference-date:50:start',
+    );
+  });
+
+  it('includes filter dimensions in task list cache keys', async () => {
+    prisma.task.findMany.mockResolvedValue(buildTaskRecordList());
+
+    await service.listTasksForWorkspace({
+      workspaceId: otherWorkspaceId,
+      currentUserId: userId,
+      assignment: 'others',
+      dueBucket: 'upcoming',
+      referenceDate: '2026-04-15',
+      limit: 25,
+      cursor: taskId,
+    });
+
+    expect(redisMock.get).toHaveBeenCalledWith(
+      'tasks:list:user-1:workspace-2:with-description:others:upcoming:2026-04-15:25:task-1',
+    );
+  });
+
+  it('returns the same board-style response from cache as from the database', async () => {
+    prisma.task.findMany.mockResolvedValueOnce(buildTaskRecordList());
+
+    const fresh = await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      includeDescription: false,
+    });
+    const cachedPayload = redisMock.set.mock.calls[0]?.[1];
+
+    if (typeof cachedPayload !== 'string') {
+      throw new Error('Expected cached payload to be written.');
+    }
+
+    prisma.task.findMany.mockClear();
+    redisMock.get.mockResolvedValueOnce(cachedPayload);
+
+    const cached = await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+      includeDescription: false,
+    });
+
+    expect(cached).toEqual(fresh);
+    expect(prisma.task.findMany).not.toHaveBeenCalled();
+    expect(cached.tasks[0]?.description).toBeNull();
+  });
+
+  it('returns the same calendar-style response from cache as from the database', async () => {
+    prisma.task.findMany.mockResolvedValueOnce(buildTaskRecordList());
+
+    const fresh = await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+    });
+    const cachedPayload = redisMock.set.mock.calls[0]?.[1];
+
+    if (typeof cachedPayload !== 'string') {
+      throw new Error('Expected cached payload to be written.');
+    }
+
+    prisma.task.findMany.mockClear();
+    redisMock.get.mockResolvedValueOnce(cachedPayload);
+
+    const cached = await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+    });
+
+    expect(cached).toEqual(fresh);
+    expect(prisma.task.findMany).not.toHaveBeenCalled();
+    expect(cached.tasks[0]?.description).toBe('Add task routes');
   });
 
   it('rejects an invalid referenceDate before querying tasks', async () => {
@@ -753,6 +868,10 @@ describe('TasksService', () => {
       assigneeUser,
       ...overrides,
     };
+  }
+
+  function buildTaskRecordList(): TaskRecord[] {
+    return [buildTaskRecord()];
   }
 
   function getLastListTasksWhere(): Prisma.TaskWhereInput {
