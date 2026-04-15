@@ -14,6 +14,12 @@ const DEFAULT_RUNS = 10;
 const DEFAULT_TIMEOUT_MS = 90000;
 const DEFAULT_WARMUP_RUNS = 1;
 const ACCESS_TOKEN_COOKIE_NAME = 'teamwork.accessToken';
+const BOARD_READY_SELECTORS = [
+  '[data-perf-board-ready="true"]',
+  'h2:has-text("Filters")',
+];
+const BOARD_ERROR_SELECTORS = ['text=Board unavailable', 'button:has-text("Retry board")'];
+const BOARD_READY_POLL_INTERVAL_MS = 250;
 
 export async function runFrontendBenchmarks(options) {
   const webBaseUrl = stripTrailingSlash(
@@ -118,7 +124,7 @@ async function runBoardMeasurement({
 
     const start = performance.now();
     await page.goto(boardUrl, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
-    await page.waitForSelector('[data-perf-board-ready="true"]', { timeout: timeoutMs });
+    const readySignal = await waitForBoardReady({ page, timeoutMs });
     const boardReadyMs = performance.now() - start;
 
     const navigationTiming = await page.evaluate(() => {
@@ -144,6 +150,7 @@ async function runBoardMeasurement({
 
     return {
       success: true,
+      readySignal,
       boardReadyMs: round(boardReadyMs),
       domContentLoadedMs: round(navigationTiming.domContentLoadedMs),
       loadEventMs: round(navigationTiming.loadEventMs),
@@ -157,6 +164,40 @@ async function runBoardMeasurement({
   } finally {
     await context.close();
   }
+}
+
+async function waitForBoardReady({ page, timeoutMs }) {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const errorSelector = await findFirstVisibleSelector(page, BOARD_ERROR_SELECTORS);
+    if (errorSelector) {
+      throw new Error(`Board rendered an error state before readiness (${errorSelector}).`);
+    }
+
+    const readySelector = await findFirstVisibleSelector(page, BOARD_READY_SELECTORS);
+    if (readySelector) {
+      return readySelector;
+    }
+
+    await page.waitForTimeout(BOARD_READY_POLL_INTERVAL_MS);
+  }
+
+  throw new Error(
+    `Timed out waiting for board readiness (${timeoutMs}ms). Ready selectors: ${BOARD_READY_SELECTORS.join(', ')}. Error selectors: ${BOARD_ERROR_SELECTORS.join(', ')}.`,
+  );
+}
+
+async function findFirstVisibleSelector(page, selectors) {
+  for (const selector of selectors) {
+    const locator = page.locator(selector).first();
+
+    if (await locator.isVisible().catch(() => false)) {
+      return selector;
+    }
+  }
+
+  return null;
 }
 
 async function runFromCli() {
