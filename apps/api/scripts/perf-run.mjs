@@ -36,7 +36,7 @@ export async function runPerformanceCapture() {
     workspaceId: fixture.workspaceId,
   });
 
-  assertBenchmarkQuality(backend, frontend);
+  const qualityError = getBenchmarkQualityError(backend, frontend);
 
   const output = {
     capturedAt: toIsoTimestamp(),
@@ -54,6 +54,10 @@ export async function runPerformanceCapture() {
     },
     backend,
     frontend,
+    validation: {
+      status: qualityError ? 'failed' : 'passed',
+      error: qualityError ? qualityError.message : null,
+    },
   };
 
   const artifactName = `${runLabel}-${envLabel}.json`;
@@ -64,6 +68,12 @@ export async function runPerformanceCapture() {
     buildRunNotes(output),
   );
 
+  if (qualityError) {
+    throw new Error(
+      `${qualityError.message} Artifacts were still written for inspection.\nJSON: ${outputPath}\nNotes: ${runNotesPath}`,
+    );
+  }
+
   return {
     artifactName,
     outputPath,
@@ -72,23 +82,25 @@ export async function runPerformanceCapture() {
   };
 }
 
-function assertBenchmarkQuality(backend, frontend) {
+function getBenchmarkQualityError(backend, frontend) {
   const invalidBackendEndpoints = backend.endpoints.filter(
     (endpoint) => endpoint.non2xx > 0 || endpoint.errors > 0 || endpoint.timeouts > 0,
   );
 
   if (invalidBackendEndpoints.length > 0) {
     const endpointLabels = invalidBackendEndpoints.map((endpoint) => endpoint.label).join(', ');
-    throw new Error(
+    return new Error(
       `Backend benchmark produced invalid responses for: ${endpointLabels}. Check throttling/auth before using this run.`,
     );
   }
 
   if (frontend.successfulRuns === 0) {
-    throw new Error(
+    return new Error(
       'Frontend benchmark produced zero successful runs. Check web runtime mode and board load readiness before using this run.',
     );
   }
+
+  return null;
 }
 
 function buildRunNotes(output) {
@@ -117,6 +129,13 @@ function buildRunNotes(output) {
     `- Board ready p50: ${output.frontend.metrics.boardReadyMs.p50}ms`,
     `- Board ready p95: ${output.frontend.metrics.boardReadyMs.p95}ms`,
     `- Board ready p99: ${output.frontend.metrics.boardReadyMs.p99}ms`,
+    '',
+    '## Validation',
+    '',
+    `- Status: ${output.validation.status}`,
+    ...(output.validation.error
+      ? [`- Error: ${output.validation.error}`]
+      : ['- Error: none']),
   ].join('\n');
 }
 
