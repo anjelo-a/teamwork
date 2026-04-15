@@ -10,9 +10,10 @@ import {
 } from './perf-utils.mjs';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
-const DEFAULT_CONNECTIONS = 20;
+const DEFAULT_CONNECTIONS = 1;
 const DEFAULT_DURATION_SECONDS = 30;
 const DEFAULT_WARMUP_SECONDS = 5;
+const DEFAULT_REQUEST_TIMEOUT_SECONDS = 60;
 
 export async function runBackendBenchmarks(options) {
   const apiBaseUrl = stripTrailingSlash(
@@ -26,6 +27,9 @@ export async function runBackendBenchmarks(options) {
     options.durationSeconds ?? getEnvInteger('BACKEND_DURATION_SECONDS', DEFAULT_DURATION_SECONDS);
   const warmupSeconds =
     options.warmupSeconds ?? getEnvInteger('BACKEND_WARMUP_SECONDS', DEFAULT_WARMUP_SECONDS);
+  const requestTimeoutSeconds =
+    options.requestTimeoutSeconds ??
+    getEnvInteger('BACKEND_REQUEST_TIMEOUT_SECONDS', DEFAULT_REQUEST_TIMEOUT_SECONDS);
 
   const authHeaders = createAuthHeaders(accessToken);
   const scenarios = [
@@ -58,6 +62,7 @@ export async function runBackendBenchmarks(options) {
       url: `${apiBaseUrl}${scenario.path}`,
       connections,
       duration: warmupSeconds,
+      timeout: requestTimeoutSeconds,
       method: scenario.method,
       headers: {
         ...authHeaders,
@@ -70,6 +75,7 @@ export async function runBackendBenchmarks(options) {
       url: `${apiBaseUrl}${scenario.path}`,
       connections,
       duration: durationSeconds,
+      timeout: requestTimeoutSeconds,
       method: scenario.method,
       headers: {
         ...authHeaders,
@@ -105,6 +111,7 @@ export async function runBackendBenchmarks(options) {
       connections,
       durationSeconds,
       warmupSeconds,
+      requestTimeoutSeconds,
     },
     endpoints: results,
   };
