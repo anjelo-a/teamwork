@@ -13,7 +13,6 @@ const DEFAULT_WEB_BASE_URL = 'http://127.0.0.1:3001';
 const DEFAULT_RUNS = 10;
 const DEFAULT_TIMEOUT_MS = 90000;
 const DEFAULT_WARMUP_RUNS = 1;
-const ACCESS_TOKEN_COOKIE_NAME = 'teamwork.accessToken';
 const BOARD_READY_SELECTORS = [
   '[data-perf-board-ready="true"]',
   'h2:has-text("Filters")',
@@ -33,7 +32,6 @@ export async function runFrontendBenchmarks(options) {
     options.warmupRuns ?? getEnvInteger('FRONTEND_WARMUP_RUNS', DEFAULT_WARMUP_RUNS);
 
   const boardUrl = `${webBaseUrl}/workspaces/${workspaceId}/board`;
-  const webOrigin = new URL(webBaseUrl).origin;
   const browser = await chromium.launch({ headless: true });
   const runResults = [];
   const warmupResults = [];
@@ -43,7 +41,6 @@ export async function runFrontendBenchmarks(options) {
       const warmupResult = await runBoardMeasurement({
         browser,
         boardUrl,
-        webOrigin,
         accessToken,
         timeoutMs,
       });
@@ -57,7 +54,6 @@ export async function runFrontendBenchmarks(options) {
       const result = await runBoardMeasurement({
         browser,
         boardUrl,
-        webOrigin,
         accessToken,
         timeoutMs,
       });
@@ -101,7 +97,6 @@ export async function runFrontendBenchmarks(options) {
 async function runBoardMeasurement({
   browser,
   boardUrl,
-  webOrigin,
   accessToken,
   timeoutMs,
 }) {
@@ -109,15 +104,9 @@ async function runBoardMeasurement({
   const page = await context.newPage();
 
   try {
-    await context.addCookies([
-      {
-        name: ACCESS_TOKEN_COOKIE_NAME,
-        value: accessToken,
-        url: webOrigin,
-        sameSite: 'Lax',
-      },
-    ]);
-
+    // Keep auth token in localStorage only. Setting a web-domain auth cookie causes
+    // server bootstrap to switch into cookie-session marker mode, which can drop
+    // Bearer auth on client API requests during benchmarks.
     await page.addInitScript((token) => {
       window.localStorage.setItem('teamwork.accessToken', token);
     }, accessToken);
