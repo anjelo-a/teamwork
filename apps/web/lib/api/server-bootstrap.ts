@@ -1,10 +1,74 @@
 import 'server-only';
 
 import { cookies } from 'next/headers';
-import type { WorkspaceBoardDataResponse } from '@teamwork/types';
-import { parseWorkspaceBoardDataResponse } from '@/lib/api/contracts';
+import type { AuthMeResponse, WorkspaceBoardDataResponse } from '@teamwork/types';
+import { parseAuthMeResponse, parseWorkspaceBoardDataResponse } from '@/lib/api/contracts';
+import { COOKIE_SESSION_MARKER_PREFIX } from '@/lib/auth/session-constants';
 
 const SERVER_ACCESS_TOKEN_COOKIE_NAMES = ['teamwork.at', 'teamwork.accessToken'] as const;
+const EMPTY_AUTH: AuthMeResponse = {
+  user: {
+    id: '',
+    email: '',
+    displayName: '',
+    createdAt: '',
+    updatedAt: '',
+  },
+  workspaces: [],
+  activeWorkspace: null,
+};
+
+export interface InitialAuthSessionSnapshot {
+  status: 'authenticated' | 'unauthenticated';
+  auth: AuthMeResponse;
+  accessToken: string | null;
+}
+
+export async function loadInitialAuthSessionSnapshot(): Promise<InitialAuthSessionSnapshot | null> {
+  const accessToken = await readServerAccessToken();
+
+  if (!accessToken) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/auth/me`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: 'no-store',
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      return {
+        status: 'unauthenticated',
+        auth: EMPTY_AUTH,
+        accessToken: null,
+      };
+    }
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload: unknown = await response.json();
+    const auth = parseAuthMeResponse(payload);
+
+    return {
+      status: 'authenticated',
+      auth,
+      accessToken: buildCookieSessionMarker(auth),
+    };
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Failed to load initial auth session snapshot.', error);
+    }
+
+    return null;
+  }
+}
 
 export async function loadInitialWorkspaceBoardData(
   workspaceId: string,
@@ -16,14 +80,17 @@ export async function loadInitialWorkspaceBoardData(
   }
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/workspaces/${workspaceId}/board-data`, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${accessToken}`,
+    const response = await fetch(
+      `${getApiBaseUrl()}/workspaces/${workspaceId}/board-data?includeMembers=false`,
+      {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        cache: 'no-store',
       },
-      cache: 'no-store',
-    });
+    );
 
     if (!response.ok) {
       return null;
@@ -64,4 +131,8 @@ function getApiBaseUrl(): string {
   }
 
   return 'http://localhost:3000';
+}
+
+function buildCookieSessionMarker(auth: AuthMeResponse): string {
+  return `${COOKIE_SESSION_MARKER_PREFIX}:${auth.user.id}:${auth.user.updatedAt}`;
 }

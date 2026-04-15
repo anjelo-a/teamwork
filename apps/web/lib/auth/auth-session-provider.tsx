@@ -36,6 +36,12 @@ interface AuthSessionContextValue {
   clearSession: () => void;
 }
 
+export interface AuthSessionBootstrapState {
+  status: 'authenticated' | 'unauthenticated';
+  auth: AuthMeResponse;
+  accessToken: string | null;
+}
+
 const EMPTY_AUTH: AuthMeResponse = {
   user: {
     id: '',
@@ -50,13 +56,25 @@ const EMPTY_AUTH: AuthMeResponse = {
 
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 
-export function AuthSessionProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus>('loading');
-  const [auth, setAuth] = useState(EMPTY_AUTH);
-  const [accessToken, setAccessTokenState] = useState<string | null>(null);
+export function AuthSessionProvider({
+  children,
+  initialSession = null,
+}: {
+  children: ReactNode;
+  initialSession?: AuthSessionBootstrapState | null;
+}) {
+  const [status, setStatus] = useState<AuthStatus>(initialSession?.status ?? 'loading');
+  const [auth, setAuth] = useState(initialSession?.auth ?? EMPTY_AUTH);
+  const [accessToken, setAccessTokenState] = useState<string | null>(
+    initialSession?.accessToken ?? null,
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initialSession) {
+      return;
+    }
+
     let isActive = true;
 
     void resolveSessionState().then((nextState) => {
@@ -75,7 +93,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [initialSession]);
 
   const contextValue = useMemo(
     (): AuthSessionContextValue => ({
