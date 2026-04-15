@@ -7,6 +7,17 @@
     "node": "24.x",
     "pnpm": "10.0.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "bcrypt",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
   "scripts": {
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
     "build": "pnpm --filter \"./apps/*\" build",
