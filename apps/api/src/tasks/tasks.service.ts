@@ -180,17 +180,18 @@ export class TasksService {
   private async listTasks(input: ListTasksForUserInput): Promise<TaskListResponse> {
     const cacheKey = this.buildTaskListCacheKey(input);
 
-    const cached = await redis.get(cacheKey);
-    if (typeof cached === 'string') {
-      try {
+    try {
+      const cached = await redis.get(cacheKey);
+
+      if (typeof cached === 'string') {
         const parsed = JSON.parse(cached) as unknown;
 
         if (isTaskListResponse(parsed)) {
           return parsed;
         }
-      } catch {
-        // Treat malformed cache entries as misses and continue to the database query.
       }
+    } catch {
+      // Treat Redis read failures and malformed cache entries as misses.
     }
 
     const limit = this.resolveTaskListLimit(input.limit);
@@ -229,7 +230,11 @@ export class TasksService {
       nextCursor,
     };
 
-    await redis.set(cacheKey, JSON.stringify(result), 'EX', 60);
+    try {
+      await redis.set(cacheKey, JSON.stringify(result), 'EX', 60);
+    } catch {
+      // Treat Redis write failures as non-fatal so fresh task data still returns.
+    }
 
     return result;
   }

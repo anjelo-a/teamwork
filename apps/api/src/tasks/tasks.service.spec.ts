@@ -606,6 +606,43 @@ describe('TasksService', () => {
     expect(cached.tasks[0]?.description).toBe('Add task routes');
   });
 
+  it('falls back to fresh task data when redis.get fails', async () => {
+    redisMock.get.mockRejectedValueOnce(new Error('redis unavailable'));
+    prisma.task.findMany.mockResolvedValueOnce(buildTaskRecordList());
+
+    const result = await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+    });
+
+    expect(result).toEqual({
+      tasks: [expect.objectContaining({ id: taskId })],
+      limit: 50,
+      hasMore: false,
+      nextCursor: null,
+    });
+    expect(prisma.task.findMany).toHaveBeenCalledTimes(1);
+    expect(redisMock.set).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns fresh task data when redis.set fails', async () => {
+    prisma.task.findMany.mockResolvedValueOnce(buildTaskRecordList());
+    redisMock.set.mockRejectedValueOnce(new Error('redis write failed'));
+
+    const result = await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+    });
+
+    expect(result).toEqual({
+      tasks: [expect.objectContaining({ id: taskId })],
+      limit: 50,
+      hasMore: false,
+      nextCursor: null,
+    });
+    expect(prisma.task.findMany).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects an invalid referenceDate before querying tasks', async () => {
     await expect(
       service.listTasksForWorkspace({
