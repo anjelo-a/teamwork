@@ -44,15 +44,6 @@ type StoredErrorState = StoredResourceState & {
 
 type StoredResourceResult<T> = StoredLoadingState | StoredSuccessState<T> | StoredErrorState;
 
-const SHARED_RESOURCE_CACHE = new Map<
-  string,
-  {
-    expiresAt: number;
-    data: unknown;
-  }
->();
-const INFLIGHT_RESOURCE_REQUESTS = new Map<string, Promise<unknown>>();
-
 export function useAuthenticatedApiResource<T>({
   key,
   load,
@@ -64,6 +55,16 @@ export function useAuthenticatedApiResource<T>({
   const { status, accessToken } = useAuthSession();
   const loadRef = useRef(load);
   const requestTokenRef = useRef<symbol | null>(null);
+  const cacheRef = useRef(
+    new Map<
+      string,
+      {
+        expiresAt: number;
+        data: T;
+      }
+    >(),
+  );
+  const inflightRequestRef = useRef(new Map<string, Promise<T>>());
   const [state, setState] = useState<StoredResourceResult<T>>({
     requestKey: null,
     status: 'loading',
@@ -84,7 +85,9 @@ export function useAuthenticatedApiResource<T>({
     const cacheKey = `${key}::${accessToken}`;
     const requestToken = Symbol(cacheKey);
     requestTokenRef.current = requestToken;
-    const cachedData = readFreshCachedValue<T>(cacheKey);
+    const cachedEntry = cacheRef.current.get(cacheKey);
+    const cachedData =
+      cachedEntry && cachedEntry.expiresAt > Date.now() ? cachedEntry.data : null;
 
     if (cachedData !== null) {
       queueMicrotask(() => {
@@ -124,7 +127,30 @@ export function useAuthenticatedApiResource<T>({
 
     void (async () => {
       try {
-        const data = await loadResourceWithDedupe(cacheKey, () => loadRef.current(accessToken), cacheTtlMs);
+        const activeInflightRequest = inflightRequestRef.current.get(cacheKey);
+        const request =
+          activeInflightRequest ??
+          loadRef.current(accessToken).then((data) => {
+            if (cacheTtlMs > 0) {
+              cacheRef.current.set(cacheKey, {
+                expiresAt: Date.now() + cacheTtlMs,
+                data,
+              });
+            }
+
+            return data;
+          });
+
+        if (!activeInflightRequest) {
+          inflightRequestRef.current.set(cacheKey, request);
+          void request.finally(() => {
+            if (inflightRequestRef.current.get(cacheKey) === request) {
+              inflightRequestRef.current.delete(cacheKey);
+            }
+          });
+        }
+
+        const data = await request;
 
         if (requestTokenRef.current !== requestToken) {
           return;
@@ -141,7 +167,7 @@ export function useAuthenticatedApiResource<T>({
           return;
         }
 
-        const staleCachedData = readStaleCachedValue<T>(cacheKey);
+        const staleCachedData = cacheRef.current.get(cacheKey)?.data ?? null;
         if (useStaleWhileRevalidate && staleCachedData !== null) {
           setState({
             requestKey: key,
@@ -205,57 +231,4 @@ export function useAuthenticatedApiResource<T>({
     data: null,
     error: null,
   };
-}
-
-function readFreshCachedValue<T>(cacheKey: string): T | null {
-  const cachedEntry = SHARED_RESOURCE_CACHE.get(cacheKey);
-
-  if (!cachedEntry) {
-    return null;
-  }
-
-  if (cachedEntry.expiresAt <= Date.now()) {
-    SHARED_RESOURCE_CACHE.delete(cacheKey);
-    return null;
-  }
-
-  return cachedEntry.data as T;
-}
-
-function readStaleCachedValue<T>(cacheKey: string): T | null {
-  const cachedEntry = SHARED_RESOURCE_CACHE.get(cacheKey);
-  return cachedEntry ? (cachedEntry.data as T) : null;
-}
-
-async function loadResourceWithDedupe<T>(
-  cacheKey: string,
-  load: () => Promise<T>,
-  cacheTtlMs: number,
-): Promise<T> {
-  const inflightRequest = INFLIGHT_RESOURCE_REQUESTS.get(cacheKey);
-
-  if (inflightRequest) {
-    return inflightRequest as Promise<T>;
-  }
-
-  const request = load().then((data) => {
-    if (cacheTtlMs > 0) {
-      SHARED_RESOURCE_CACHE.set(cacheKey, {
-        expiresAt: Date.now() + cacheTtlMs,
-        data,
-      });
-    }
-
-    return data;
-  });
-
-  INFLIGHT_RESOURCE_REQUESTS.set(cacheKey, request as Promise<unknown>);
-
-  request.finally(() => {
-    if (INFLIGHT_RESOURCE_REQUESTS.get(cacheKey) === request) {
-      INFLIGHT_RESOURCE_REQUESTS.delete(cacheKey);
-    }
-  });
-
-  return request;
 }
