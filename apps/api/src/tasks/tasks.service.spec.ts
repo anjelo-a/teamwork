@@ -625,6 +625,64 @@ describe('TasksService', () => {
     expect(redisMock.set).toHaveBeenCalledTimes(1);
   });
 
+  it('treats malformed cached JSON as a cache miss', async () => {
+    redisMock.get.mockResolvedValueOnce('{not-json');
+    prisma.task.findMany.mockResolvedValueOnce(buildTaskRecordList());
+
+    const result = await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+    });
+
+    expect(result).toEqual({
+      tasks: [expect.objectContaining({ id: taskId })],
+      limit: 50,
+      hasMore: false,
+      nextCursor: null,
+    });
+    expect(prisma.task.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats structurally invalid cached payloads as a cache miss', async () => {
+    redisMock.get.mockResolvedValueOnce(
+      JSON.stringify({
+        tasks: [
+          {
+            id: taskId,
+            workspaceId,
+            title: 'Build API',
+            description: 'Add task routes',
+            dueDate: null,
+            status: 'todo',
+            createdByUserId: userId,
+            assigneeUserId: otherUserId,
+            createdAt: '2026-03-27T00:00:00.000Z',
+            updatedAt: '2026-03-27T00:00:00.000Z',
+            createdByUser: null,
+            assigneeUser: null,
+          },
+        ],
+        limit: 50,
+        hasMore: false,
+        nextCursor: null,
+      }),
+    );
+    prisma.task.findMany.mockResolvedValueOnce(buildTaskRecordList());
+
+    const result = await service.listTasksForWorkspace({
+      workspaceId,
+      currentUserId: userId,
+    });
+
+    expect(result).toEqual({
+      tasks: [expect.objectContaining({ id: taskId })],
+      limit: 50,
+      hasMore: false,
+      nextCursor: null,
+    });
+    expect(prisma.task.findMany).toHaveBeenCalledTimes(1);
+  });
+
   it('returns fresh task data when redis.set fails', async () => {
     prisma.task.findMany.mockResolvedValueOnce(buildTaskRecordList());
     redisMock.set.mockRejectedValueOnce(new Error('redis write failed'));
