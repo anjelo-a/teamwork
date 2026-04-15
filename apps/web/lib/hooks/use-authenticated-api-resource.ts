@@ -9,6 +9,7 @@ interface UseAuthenticatedApiResourceOptions<T> {
   cacheTtlMs?: number;
   useStaleWhileRevalidate?: boolean;
   initialData?: T | null;
+  enabled?: boolean;
 }
 
 type ResourceState<T> =
@@ -49,6 +50,7 @@ export function useAuthenticatedApiResource<T>({
   cacheTtlMs = 0,
   useStaleWhileRevalidate = false,
   initialData = null,
+  enabled = true,
 }: UseAuthenticatedApiResourceOptions<T>): ResourceState<T> {
   const { status, accessToken } = useAuthSession();
   const loadRef = useRef(load);
@@ -62,6 +64,7 @@ export function useAuthenticatedApiResource<T>({
       }
     >(),
   );
+  const inflightRequestRef = useRef(new Map<string, Promise<T>>());
   const [state, setState] = useState<StoredResourceResult<T>>({
     requestKey: null,
     status: 'loading',
@@ -74,7 +77,7 @@ export function useAuthenticatedApiResource<T>({
   }, [load]);
 
   useEffect(() => {
-    if (status !== 'authenticated' || !accessToken) {
+    if (!enabled || status !== 'authenticated' || !accessToken) {
       requestTokenRef.current = null;
       return;
     }
@@ -83,9 +86,10 @@ export function useAuthenticatedApiResource<T>({
     const requestToken = Symbol(cacheKey);
     requestTokenRef.current = requestToken;
     const cachedEntry = cacheRef.current.get(cacheKey);
-    const hasFreshCachedEntry = Boolean(cachedEntry && cachedEntry.expiresAt > Date.now());
+    const cachedData =
+      cachedEntry && cachedEntry.expiresAt > Date.now() ? cachedEntry.data : null;
 
-    if (hasFreshCachedEntry && cachedEntry) {
+    if (cachedData !== null) {
       queueMicrotask(() => {
         if (requestTokenRef.current !== requestToken) {
           return;
@@ -94,7 +98,7 @@ export function useAuthenticatedApiResource<T>({
         setState({
           requestKey: key,
           status: 'success',
-          data: cachedEntry.data,
+          data: cachedData,
           error: null,
         });
       });
@@ -123,17 +127,33 @@ export function useAuthenticatedApiResource<T>({
 
     void (async () => {
       try {
-        const data = await loadRef.current(accessToken);
+        const activeInflightRequest = inflightRequestRef.current.get(cacheKey);
+        const request =
+          activeInflightRequest ??
+          loadRef.current(accessToken).then((data) => {
+            if (cacheTtlMs > 0) {
+              cacheRef.current.set(cacheKey, {
+                expiresAt: Date.now() + cacheTtlMs,
+                data,
+              });
+            }
+
+            return data;
+          });
+
+        if (!activeInflightRequest) {
+          inflightRequestRef.current.set(cacheKey, request);
+          void request.finally(() => {
+            if (inflightRequestRef.current.get(cacheKey) === request) {
+              inflightRequestRef.current.delete(cacheKey);
+            }
+          });
+        }
+
+        const data = await request;
 
         if (requestTokenRef.current !== requestToken) {
           return;
-        }
-
-        if (cacheTtlMs > 0) {
-          cacheRef.current.set(cacheKey, {
-            expiresAt: Date.now() + cacheTtlMs,
-            data,
-          });
         }
 
         setState({
@@ -144,6 +164,17 @@ export function useAuthenticatedApiResource<T>({
         });
       } catch (error) {
         if (requestTokenRef.current !== requestToken) {
+          return;
+        }
+
+        const staleCachedData = cacheRef.current.get(cacheKey)?.data ?? null;
+        if (useStaleWhileRevalidate && staleCachedData !== null) {
+          setState({
+            requestKey: key,
+            status: 'success',
+            data: staleCachedData,
+            error: null,
+          });
           return;
         }
 
@@ -161,9 +192,9 @@ export function useAuthenticatedApiResource<T>({
         requestTokenRef.current = null;
       }
     };
-  }, [accessToken, cacheTtlMs, initialData, key, status, useStaleWhileRevalidate]);
+  }, [accessToken, cacheTtlMs, enabled, initialData, key, status, useStaleWhileRevalidate]);
 
-  if (status !== 'authenticated' || !accessToken) {
+  if (!enabled || status !== 'authenticated' || !accessToken) {
     return {
       status: 'loading',
       data: null,
