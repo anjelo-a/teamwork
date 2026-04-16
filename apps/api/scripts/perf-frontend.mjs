@@ -110,7 +110,6 @@ async function runBoardMeasurement({
         name: 'teamwork.accessToken',
         value: accessToken,
         url: boardOrigin,
-        path: '/',
         sameSite: 'Lax',
         secure: boardOrigin.startsWith('https://'),
       },
